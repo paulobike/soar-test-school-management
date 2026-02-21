@@ -19,7 +19,7 @@ describe('User.manager', () => {
         });
     });
 
-    // ─── getUser ─────────────────────────────────────────────────────────────
+    // Get User
 
     describe('getUser', () => {
         it('should return error if user not found', async () => {

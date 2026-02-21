@@ -126,7 +126,7 @@ describe('Auth.manager', () => {
         it('should propagate error if token revocation fails', async () => {
             mockTokenManager.revokeLongToken.mockResolvedValue({ error: 'token_not_found' });
 
-            const result = await auth.logout({ token: 'bad_token' });
+            const result = await auth.logout({ longToken: 'bad_token' });
 
             expect(result).toEqual({ error: 'token_not_found' });
         });
@@ -134,7 +134,7 @@ describe('Auth.manager', () => {
         it('should return success on valid token', async () => {
             mockTokenManager.revokeLongToken.mockResolvedValue({ success: true });
 
-            const result = await auth.logout({ token: 'valid_token' });
+            const result = await auth.logout({ longToken: 'valid_token' });
 
             expect(result).toEqual({ success: true });
         });
@@ -142,7 +142,7 @@ describe('Auth.manager', () => {
         it('should call revokeLongToken with the correct token', async () => {
             mockTokenManager.revokeLongToken.mockResolvedValue({ success: true });
 
-            await auth.logout({ token: 'valid_token' });
+            await auth.logout({ longToken: 'valid_token' });
 
             expect(mockTokenManager.revokeLongToken).toHaveBeenCalledWith({ token: 'valid_token' });
         });
@@ -154,7 +154,7 @@ describe('Auth.manager', () => {
         it('should return error if long token is invalid', async () => {
             mockTokenManager.validateLongToken.mockResolvedValue({ error: 'invalid_token' });
 
-            const result = await auth.refreshShortToken({ token: 'bad_long_token' });
+            const result = await auth.refreshShortToken({ longToken: 'bad_long_token' });
 
             expect(result).toEqual({ error: 'invalid_token' });
         });
@@ -162,7 +162,7 @@ describe('Auth.manager', () => {
         it('should return error if long token is expired', async () => {
             mockTokenManager.validateLongToken.mockResolvedValue({ error: 'token_expired' });
 
-            const result = await auth.refreshShortToken({ token: 'expired_long_token' });
+            const result = await auth.refreshShortToken({ longToken: 'expired_long_token' });
 
             expect(result).toEqual({ error: 'token_expired' });
         });
@@ -171,7 +171,7 @@ describe('Auth.manager', () => {
             mockTokenManager.validateLongToken.mockResolvedValue({ userId: 'uid1' });
             mockTokenManager.createShortToken.mockResolvedValue({ token: 'new_short_tok' });
 
-            const result = await auth.refreshShortToken({ token: 'valid_long_token' });
+            const result = await auth.refreshShortToken({ longToken: 'valid_long_token' });
 
             expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({ userId: 'uid1' });
             expect(result).toEqual({ shortToken: 'new_short_tok' });

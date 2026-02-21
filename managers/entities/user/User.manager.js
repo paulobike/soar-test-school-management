@@ -10,7 +10,12 @@ module.exports = class User {
         this.userExposed         = ['createUser'];
     }
 
-    async getUser({ userId }) {}
+    async getUser({ userId }) {
+        const user = await this.mongomodels.user.findById(userId);
+        if (!user) return { error: 'user_not_found' };
+        const { password, ...sanitizedUser } = user.toObject ? user.toObject() : { ...user };
+        return { user: sanitizedUser };
+    }
 
     async createUser({username, email, password}){
         const user = {username, email, password};
