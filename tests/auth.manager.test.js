@@ -1,0 +1,209 @@
+const bcrypt = require('bcrypt');
+jest.mock('bcrypt');
+
+const Auth = require('../managers/entities/auth/Auth.manager');
+
+describe('Auth.manager', () => {
+    let auth;
+    let mockTokenManager;
+    let mockUserManager;
+    let mockMongomodels;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        mockTokenManager = {
+            createLongToken:  jest.fn(),
+            createShortToken: jest.fn(),
+            revokeLongToken:  jest.fn(),
+            validateLongToken: jest.fn(),
+        };
+
+        mockUserManager = {
+            getUser: jest.fn(),
+        };
+
+        mockMongomodels = {
+            user: {
+                findOne: jest.fn(),
+            },
+        };
+
+        auth = new Auth({
+            managers:    { token: mockTokenManager, user: mockUserManager },
+            mongomodels: mockMongomodels,
+        });
+    });
+
+    // Login
+
+    describe('login', () => {
+        const credentials = {
+            email:    'admin@school.com',
+            password: 'secret123',
+            device:   'Mozilla/5.0',
+            ip:       '127.0.0.1',
+        };
+
+        it('should return error if user not found', async () => {
+            mockMongomodels.user.findOne.mockResolvedValue(null);
+
+            const result = await auth.login(credentials);
+
+            expect(result).toEqual({ error: 'invalid_credentials' });
+        });
+
+        it('should return error if password does not match', async () => {
+            mockMongomodels.user.findOne.mockResolvedValue({
+                _id: 'uid1', email: credentials.email, password: 'hashed',
+            });
+            bcrypt.compare.mockResolvedValue(false);
+
+            const result = await auth.login(credentials);
+
+            expect(result).toEqual({ error: 'invalid_credentials' });
+        });
+
+        it('should call createLongToken with correct args on valid credentials', async () => {
+            const mockUser = { _id: 'uid1', email: credentials.email, password: 'hashed', role: 'schoolAdmin' };
+            mockMongomodels.user.findOne.mockResolvedValue(mockUser);
+            bcrypt.compare.mockResolvedValue(true);
+            mockTokenManager.createLongToken.mockResolvedValue({ token: 'long_tok' });
+            mockTokenManager.createShortToken.mockResolvedValue({ token: 'short_tok' });
+
+            await auth.login(credentials);
+
+            expect(mockTokenManager.createLongToken).toHaveBeenCalledWith({
+                userId: mockUser._id,
+                device: credentials.device,
+                ip:     credentials.ip,
+            });
+        });
+
+        it('should call createShortToken with correct args on valid credentials', async () => {
+            const mockUser = { _id: 'uid1', email: credentials.email, password: 'hashed', role: 'schoolAdmin' };
+            mockMongomodels.user.findOne.mockResolvedValue(mockUser);
+            bcrypt.compare.mockResolvedValue(true);
+            mockTokenManager.createLongToken.mockResolvedValue({ token: 'long_tok' });
+            mockTokenManager.createShortToken.mockResolvedValue({ token: 'short_tok' });
+
+            await auth.login(credentials);
+
+            expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({
+                userId: mockUser._id,
+            });
+        });
+
+        it('should return longToken, shortToken, and user (without password) on valid credentials', async () => {
+            const mockUser = { _id: 'uid1', email: credentials.email, password: 'hashed', role: 'schoolAdmin' };
+            mockMongomodels.user.findOne.mockResolvedValue(mockUser);
+            bcrypt.compare.mockResolvedValue(true);
+            mockTokenManager.createLongToken.mockResolvedValue({ token: 'long_tok' });
+            mockTokenManager.createShortToken.mockResolvedValue({ token: 'short_tok' });
+
+            const result = await auth.login(credentials);
+
+            const { password, ...sanitizedUser } = mockUser;
+            expect(result).toEqual({ longToken: 'long_tok', shortToken: 'short_tok', user: sanitizedUser });
+            expect(result.user.password).toBeUndefined();
+        });
+
+        it('should propagate error if createLongToken fails', async () => {
+            const mockUser = { _id: 'uid1', email: credentials.email, password: 'hashed', role: 'schoolAdmin' };
+            mockMongomodels.user.findOne.mockResolvedValue(mockUser);
+            bcrypt.compare.mockResolvedValue(true);
+            mockTokenManager.createLongToken.mockResolvedValue({ error: 'token_creation_failed' });
+
+            const result = await auth.login(credentials);
+
+            expect(result).toEqual({ error: 'token_creation_failed' });
+        });
+    });
+
+    // Logout
+
+    describe('logout', () => {
+        it('should propagate error if token revocation fails', async () => {
+            mockTokenManager.revokeLongToken.mockResolvedValue({ error: 'token_not_found' });
+
+            const result = await auth.logout({ token: 'bad_token' });
+
+            expect(result).toEqual({ error: 'token_not_found' });
+        });
+
+        it('should return success on valid token', async () => {
+            mockTokenManager.revokeLongToken.mockResolvedValue({ success: true });
+
+            const result = await auth.logout({ token: 'valid_token' });
+
+            expect(result).toEqual({ success: true });
+        });
+
+        it('should call revokeLongToken with the correct token', async () => {
+            mockTokenManager.revokeLongToken.mockResolvedValue({ success: true });
+
+            await auth.logout({ token: 'valid_token' });
+
+            expect(mockTokenManager.revokeLongToken).toHaveBeenCalledWith({ token: 'valid_token' });
+        });
+    });
+
+    // Refresh Short Token
+
+    describe('refreshShortToken', () => {
+        it('should return error if long token is invalid', async () => {
+            mockTokenManager.validateLongToken.mockResolvedValue({ error: 'invalid_token' });
+
+            const result = await auth.refreshShortToken({ token: 'bad_long_token' });
+
+            expect(result).toEqual({ error: 'invalid_token' });
+        });
+
+        it('should return error if long token is expired', async () => {
+            mockTokenManager.validateLongToken.mockResolvedValue({ error: 'token_expired' });
+
+            const result = await auth.refreshShortToken({ token: 'expired_long_token' });
+
+            expect(result).toEqual({ error: 'token_expired' });
+        });
+
+        it('should return a new shortToken on valid long token', async () => {
+            mockTokenManager.validateLongToken.mockResolvedValue({ userId: 'uid1' });
+            mockTokenManager.createShortToken.mockResolvedValue({ token: 'new_short_tok' });
+
+            const result = await auth.refreshShortToken({ token: 'valid_long_token' });
+
+            expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({ userId: 'uid1' });
+            expect(result).toEqual({ shortToken: 'new_short_tok' });
+        });
+    });
+
+    // Me
+
+    describe('me', () => {
+        it('should return error if user not found', async () => {
+            mockUserManager.getUser.mockResolvedValue({ error: 'user_not_found' });
+
+            const result = await auth.me({ userId: 'uid1' });
+
+            expect(result).toEqual({ error: 'user_not_found' });
+        });
+
+        it('should return user on valid userId', async () => {
+            const mockUser = { _id: 'uid1', email: 'admin@school.com', role: 'schoolAdmin' };
+            mockUserManager.getUser.mockResolvedValue({ user: mockUser });
+
+            const result = await auth.me({ userId: 'uid1' });
+
+            expect(result).toEqual({ user: mockUser });
+        });
+
+        it('should call getUser with the correct userId', async () => {
+            mockUserManager.getUser.mockResolvedValue({ user: {} });
+
+            await auth.me({ userId: 'uid1' });
+
+            expect(mockUserManager.getUser).toHaveBeenCalledWith({ userId: 'uid1' });
+        });
+    });
+});

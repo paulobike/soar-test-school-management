@@ -21,11 +21,10 @@ const CACHE_PREFIX                     = process.env.CACHE_PREFIX || `${SERVICE_
 
 const MONGO_URI                        = process.env.MONGO_URI || `mongodb://localhost:27017/${SERVICE_NAME}`;
 const config                           = require(`./envs/${ENV}.js`);
-const LONG_TOKEN_SECRET                = process.env.LONG_TOKEN_SECRET || null;
 const SHORT_TOKEN_SECRET               = process.env.SHORT_TOKEN_SECRET || null;
 const NACL_SECRET                      = process.env.NACL_SECRET || null;
 
-if(!LONG_TOKEN_SECRET || !SHORT_TOKEN_SECRET || !NACL_SECRET) {
+if(!SHORT_TOKEN_SECRET || !NACL_SECRET) {
     throw Error('missing .env variables check index.config');
 }
 
@@ -43,7 +42,6 @@ config.dotEnv = {
     USER_PORT,
     ADMIN_PORT,
     ADMIN_URL,
-    LONG_TOKEN_SECRET,
     SHORT_TOKEN_SECRET,
 };
 

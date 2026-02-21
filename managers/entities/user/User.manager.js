@@ -10,6 +10,8 @@ module.exports = class User {
         this.userExposed         = ['createUser'];
     }
 
+    async getUser({ userId }) {}
+
     async createUser({username, email, password}){
         const user = {username, email, password};
 
