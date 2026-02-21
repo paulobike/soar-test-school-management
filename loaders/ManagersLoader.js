@@ -7,6 +7,7 @@ const VirtualStack          = require('../managers/virtual_stack/VirtualStack.ma
 const ValidatorsLoader      = require('./ValidatorsLoader');
 const ResponsesLoader       = require('./ResponsesLoader');
 const ResourceMeshLoader    = require('./ResourceMeshLoader');
+const MongoLoader           = require('./MongoLoader');
 const utils                 = require('../libs/utils');
 
 const systemArch            = require('../static_arch/main.system');
@@ -38,7 +39,7 @@ module.exports = class ManagersLoader {
             managers:      this.managers,
             validators:    this.validators,
             responses:     this.responses,
-            // mongomodels: this.mongomodels,
+            mongomodels:   this.mongomodels,
             resourceNodes: this.resourceNodes,
         };
         
@@ -51,12 +52,12 @@ module.exports = class ManagersLoader {
         });
         const responsesLoader     = new ResponsesLoader();
         const resourceMeshLoader  = new ResourceMeshLoader({})
-        // const mongoLoader      = new MongoLoader({ schemaExtension: "mongoModel.js" });
+        const mongoLoader         = new MongoLoader({ schemaExtension: 'mongoModel.js' });
 
         this.validators           = validatorsLoader.load();
         this.responses            = responsesLoader.load();
         this.resourceNodes        = resourceMeshLoader.load();
-        // this.mongomodels          = mongoLoader.load();
+        this.mongomodels          = mongoLoader.load();
 
     }
 

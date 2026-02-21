@@ -111,4 +111,32 @@ module.exports = {
         type: 'string',
         oneOf: ['longToken'],
     },
+    firstName: {
+        path: 'firstName',
+        type: 'string',
+        length: { min: 2, max: 50 },
+    },
+    lastName: {
+        path: 'lastName',
+        type: 'string',
+        length: { min: 2, max: 50 },
+    },
+    role: {
+        path: 'role',
+        type: 'string',
+        oneOf: ['superadmin', 'schoolAdmin'],
+    },
+    address: {
+        path: 'address',
+        type: 'string',
+        length: { min: 5, max: 200 },
+    },
+    capacity: {
+        path: 'capacity',
+        type: 'number',
+    },
+    maxCapacity: {
+        path: 'maxCapacity',
+        type: 'number',
+    },
 }
