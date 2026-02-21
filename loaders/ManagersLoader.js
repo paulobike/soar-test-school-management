@@ -5,13 +5,15 @@ const UserServer            = require('../managers/http/UserServer.manager');
 const ResponseDispatcher    = require('../managers/response_dispatcher/ResponseDispatcher.manager');
 const VirtualStack          = require('../managers/virtual_stack/VirtualStack.manager');
 const ValidatorsLoader      = require('./ValidatorsLoader');
+const ResponsesLoader       = require('./ResponsesLoader');
 const ResourceMeshLoader    = require('./ResourceMeshLoader');
 const utils                 = require('../libs/utils');
 
 const systemArch            = require('../static_arch/main.system');
-const TokenManager          = require('../managers/token/Token.manager');
+const TokenManager          = require('../managers/entities/token/Token.manager');
 const SharkFin              = require('../managers/shark_fin/SharkFin.manager');
 const TimeMachine           = require('../managers/time_machine/TimeMachine.manager');
+const DocsManager           = require('../managers/docs/Docs.manager');
 
 /** 
  * load sharable modules
@@ -28,13 +30,14 @@ module.exports = class ManagersLoader {
         this._preload();
         this.injectable = {
             utils,
-            cache, 
+            cache,
             config,
             cortex,
             oyster,
             aeon,
-            managers: this.managers, 
-            validators: this.validators,
+            managers:      this.managers,
+            validators:    this.validators,
+            responses:     this.responses,
             // mongomodels: this.mongomodels,
             resourceNodes: this.resourceNodes,
         };
@@ -46,10 +49,12 @@ module.exports = class ManagersLoader {
             models: require('../managers/_common/schema.models'),
             customValidators: require('../managers/_common/schema.validators'),
         });
+        const responsesLoader     = new ResponsesLoader();
         const resourceMeshLoader  = new ResourceMeshLoader({})
         // const mongoLoader      = new MongoLoader({ schemaExtension: "mongoModel.js" });
 
         this.validators           = validatorsLoader.load();
+        this.responses            = responsesLoader.load();
         this.resourceNodes        = resourceMeshLoader.load();
         // this.mongomodels          = mongoLoader.load();
 
@@ -69,6 +74,7 @@ module.exports = class ManagersLoader {
         /*************************************************************************************************/
         this.managers.mwsExec             = new VirtualStack({ ...{ preStack: [/* '__token', */'__device',] }, ...this.injectable });
         this.managers.userApi             = new ApiHandler({...this.injectable,...{prop:'httpExposed'}});
+        this.managers.docs                = new DocsManager({ config: this.config, managers: this.managers, responses: this.responses });
         this.managers.userServer          = new UserServer({ config: this.config, managers: this.managers });
 
        

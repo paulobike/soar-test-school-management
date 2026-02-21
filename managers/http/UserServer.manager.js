@@ -1,12 +1,14 @@
 const http              = require('http');
 const express           = require('express');
 const cors              = require('cors');
+const swaggerUi         = require('swagger-ui-express');
 const app               = express();
 
 module.exports = class UserServer {
     constructor({config, managers}){
         this.config        = config;
         this.userApi       = managers.userApi;
+        this.docs          = managers.docs;
     }
     
     /** for injecting middlewares */
@@ -27,6 +29,10 @@ module.exports = class UserServer {
             res.status(500).send('Something broke!')
         });
         
+        /** api docs */
+        app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(this.docs.spec));
+        app.get('/api-docs.json', (req, res) => res.json(this.docs.spec));
+
         /** a single middleware to handle all */
         app.all('/api/:moduleName/:fnName', this.userApi.mw);
 

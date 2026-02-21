@@ -102,4 +102,13 @@ module.exports = {
     bool: {
         type: 'Boolean',
     },
+    longToken: {
+        path: 'longToken',
+        type: 'string',
+    },
+    grantType: {
+        path: 'grantType',
+        type: 'string',
+        oneOf: ['longToken'],
+    },
 }

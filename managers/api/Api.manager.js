@@ -11,12 +11,13 @@ module.exports = class ApiHandler {
      * @param {string} prop with key to scan for exposed methods
      */
 
-    constructor({config, cortex, cache, managers, mwsRepo, prop}){
+    constructor({config, cortex, cache, managers, mwsRepo, responses, prop}){
         this.config        = config;
-        this.cache         = cache; 
+        this.cache         = cache;
         this.cortex        = cortex;
         this.managers      = managers;
         this.mwsRepo       = mwsRepo;
+        this.responses     = responses || {};
         this.mwsExec       = this.managers.mwsExec;
         this.prop          = prop
         this.exposed       = {};
@@ -107,6 +108,21 @@ module.exports = class ApiHandler {
     }
 
 
+    _filterResponse(data, model) {
+        if (!data || !model) return data;
+        const filtered = {};
+        Object.keys(model).forEach(key => {
+            if (data[key] === undefined) return;
+            const fieldDef = model[key];
+            if (fieldDef.model || fieldDef.type) {
+                filtered[key] = data[key];
+            } else {
+                filtered[key] = this._filterResponse(data[key], fieldDef);
+            }
+        });
+        return filtered;
+    }
+
     async _exec({targetModule, fnName, cb, data}){
         let result = {};
         
@@ -152,7 +168,7 @@ module.exports = class ApiHandler {
 
             let body = req.body || {};
             let result = await this._exec({targetModule: this.managers[moduleName], fnName, data: {
-                ...body, 
+                ...body,
                 ...results,
                 res,
             }});
@@ -161,13 +177,14 @@ module.exports = class ApiHandler {
             if(result.selfHandleResponse){
                 // do nothing if response handeled
             } else {
-                
                 if(result.errors){
                     return this.managers.responseDispatcher.dispatch(res, {ok: false, errors: result.errors});
                 } else if(result.error){
                     return this.managers.responseDispatcher.dispatch(res, {ok: false, message: result.error});
                 } else {
-                    return this.managers.responseDispatcher.dispatch(res, {ok:true, data: result});
+                    const responseModel = this.responses[moduleName] && this.responses[moduleName][fnName];
+                    const data = responseModel ? this._filterResponse(result, responseModel) : result;
+                    return this.managers.responseDispatcher.dispatch(res, {ok:true, data});
                 }
             }
         }});
