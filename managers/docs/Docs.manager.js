@@ -51,6 +51,10 @@ module.exports = class DocsManager {
         if (modelDef.oneOf) prop.enum    = modelDef.oneOf;
         if (modelDef.description) prop.description = modelDef.description;
 
+        const examples = { string: 'string', number: 0, boolean: true, array: [] };
+        prop.example = examples[prop.type] ?? 'string';
+
+
         return prop;
     }
 

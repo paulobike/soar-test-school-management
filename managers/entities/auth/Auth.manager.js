@@ -6,10 +6,14 @@ module.exports = class Auth {
         this.mongomodels  = mongomodels;
         this.tokenManager = managers.token;
         this.userManager  = managers.user;
+        this.authValidators   = validators.auth;
         this.httpExposed  = ['login', 'logout', 'get=me', 'refreshShortToken'];
     }
 
     async login({ email, password, device, ip }) {
+        const validationErrors = await this.authValidators.login({ email, password });
+        if (validationErrors) return { errors: validationErrors, message: "request_validation_error" };
+
         const user = await this.mongomodels.user.findOne({ email });
         if (!user) return { error: 'invalid_credentials' };
 
@@ -26,6 +30,9 @@ module.exports = class Auth {
     }
 
     async logout({ longToken }) {
+        const validationErrors = await this.authValidators.logout({ longToken });
+        if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
+
         return this.tokenManager.revokeLongToken({ token: longToken });
     }
 
@@ -34,6 +41,9 @@ module.exports = class Auth {
     }
 
     async refreshShortToken({ longToken }) {
+        const validationErrors = await this.authValidators.refreshShortToken({ longToken });
+        if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
+
         const result = await this.tokenManager.validateLongToken({ token: longToken });
         if (result.error) return result;
 

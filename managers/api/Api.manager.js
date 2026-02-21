@@ -178,7 +178,7 @@ module.exports = class ApiHandler {
                 // do nothing if response handeled
             } else {
                 if(result.errors){
-                    return this.managers.responseDispatcher.dispatch(res, {ok: false, errors: result.errors});
+                    return this.managers.responseDispatcher.dispatch(res, {ok: false, errors: result.errors, message: result.message});
                 } else if(result.error){
                     return this.managers.responseDispatcher.dispatch(res, {ok: false, message: result.error});
                 } else {

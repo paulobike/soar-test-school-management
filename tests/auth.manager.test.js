@@ -8,14 +8,15 @@ describe('Auth.manager', () => {
     let mockTokenManager;
     let mockUserManager;
     let mockMongomodels;
+    let mockValidators;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
         mockTokenManager = {
-            createLongToken:  jest.fn(),
-            createShortToken: jest.fn(),
-            revokeLongToken:  jest.fn(),
+            createLongToken:   jest.fn(),
+            createShortToken:  jest.fn(),
+            revokeLongToken:   jest.fn(),
             validateLongToken: jest.fn(),
         };
 
@@ -29,9 +30,18 @@ describe('Auth.manager', () => {
             },
         };
 
+        mockValidators = {
+            auth: {
+                login:             jest.fn().mockResolvedValue(null),
+                logout:            jest.fn().mockResolvedValue(null),
+                refreshShortToken: jest.fn().mockResolvedValue(null),
+            },
+        };
+
         auth = new Auth({
-            managers:    { token: mockTokenManager, user: mockUserManager },
+            managers:   { token: mockTokenManager, user: mockUserManager },
             mongomodels: mockMongomodels,
+            validators:  mockValidators,
         });
     });
 
