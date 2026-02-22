@@ -124,6 +124,31 @@ describe('School.manager', () => {
         });
     });
 
+    // getSchools
+
+    describe('getSchools', () => {
+        it('should return all non-soft-deleted schools', async () => {
+            const mockSchools = [
+                { _id: 'sid1', name: 'Greenwood High',  deletedAt: null },
+                { _id: 'sid2', name: 'Riverside Middle', deletedAt: null },
+            ];
+            mockMongomodels.school.find = jest.fn().mockResolvedValue(mockSchools);
+
+            const result = await school.getSchools({ __token: superadminToken, __role: 'superadmin' });
+
+            expect(mockMongomodels.school.find).toHaveBeenCalledWith({ deletedAt: null });
+            expect(result).toEqual({ schools: mockSchools });
+        });
+
+        it('should return an empty array if no schools exist', async () => {
+            mockMongomodels.school.find = jest.fn().mockResolvedValue([]);
+
+            const result = await school.getSchools({ __token: superadminToken, __role: 'superadmin' });
+
+            expect(result).toEqual({ schools: [] });
+        });
+    });
+
     // getSchool
 
     describe('getSchool', () => {
