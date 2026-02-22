@@ -6,6 +6,7 @@ module.exports = class TransferRequest {
         this.config                     = config;
         this.cortex                     = cortex;
         this.mongomodels                = mongomodels;
+        this.studentManager             = managers.student;
         this.transferRequestValidators  = validators.transferRequest;
         this.httpExposed                = [
             'post=createTransferRequest',
@@ -29,9 +30,9 @@ module.exports = class TransferRequest {
         return { transferRequest: req };
     }
 
-    async createTransferRequest({ __token, __role, studentId, toSchoolId, toClassroomId }) {
-        const student = await this.mongomodels.student.findById(studentId);
-        if (!student || student.deletedAt) return { error: 'student_not_found', code: 404 };
+    async createTransferRequest({ __token, __role, studentNumber, toSchoolId, toClassroomId }) {
+        const student = await this.mongomodels.student.findOne({ studentNumber, deletedAt: null });
+        if (!student) return { error: 'student_not_found', code: 404 };
 
         if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== student.school?.toString()) {
             return { error: 'forbidden', code: 403 };
@@ -40,10 +41,10 @@ module.exports = class TransferRequest {
         const toSchool = await this.mongomodels.school.findById(toSchoolId);
         if (!toSchool || toSchool.deletedAt) return { error: 'school_not_found', code: 404 };
 
-        const validationErrors = await this.transferRequestValidators.createTransferRequest({ studentId, toSchoolId, toClassroomId });
+        const validationErrors = await this.transferRequestValidators.createTransferRequest({ studentNumber, toSchoolId, toClassroomId });
         if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
 
-        const existing = await this.mongomodels.transferRequest.findOne({ student: studentId, status: TRANSFER_STATUSES.PENDING });
+        const existing = await this.mongomodels.transferRequest.findOne({ student: student._id, status: TRANSFER_STATUSES.PENDING });
         if (existing) return { error: 'transfer_request_already_pending', code: 409 };
 
         const classroom = student.classroom
@@ -59,7 +60,7 @@ module.exports = class TransferRequest {
         };
 
         const created = await this.mongomodels.transferRequest.create({
-            student:     studentId,
+            student:     student._id,
             fromSchool:  student.school,
             toSchool:    toSchoolId,
             toClassroom: toClassroomId,
@@ -109,9 +110,12 @@ module.exports = class TransferRequest {
             return { error: 'transfer_request_not_pending', code: 409 };
         }
 
+        const toSchool      = await this.mongomodels.school.findById(transferRequest.toSchool);
+        const studentNumber = await this.studentManager._nextStudentNumber({ schoolCode: toSchool.code });
+
         await this.mongomodels.student.findByIdAndUpdate(
             transferRequest.student,
-            { school: transferRequest.toSchool, classroom: transferRequest.toClassroom },
+            { school: transferRequest.toSchool, classroom: transferRequest.toClassroom, studentNumber },
         );
 
         const updated = await this.mongomodels.transferRequest.findByIdAndUpdate(

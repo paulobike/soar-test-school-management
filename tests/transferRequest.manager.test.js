@@ -5,6 +5,7 @@ describe('TransferRequest.manager', () => {
     let transferRequest;
     let mockMongomodels;
     let mockValidators;
+    let mockManagers;
 
     const superadminToken       = { userId: 'admin1', role: 'superadmin' };
     const fromSchoolAdminToken  = { userId: 'admin2', role: 'schoolAdmin', school: 'sid1' };
@@ -40,6 +41,7 @@ describe('TransferRequest.manager', () => {
                 findByIdAndUpdate: jest.fn().mockResolvedValue({}),
             },
             student: {
+                findOne:           jest.fn(),
                 findById:          jest.fn(),
                 findByIdAndUpdate: jest.fn().mockResolvedValue({}),
             },
@@ -57,7 +59,14 @@ describe('TransferRequest.manager', () => {
             },
         };
 
+        mockManagers = {
+            student: {
+                _nextStudentNumber: jest.fn().mockResolvedValue('RIV-2026-0001'),
+            },
+        };
+
         transferRequest = new TransferRequest({
+            managers:    mockManagers,
             mongomodels: mockMongomodels,
             validators:  mockValidators,
         });
@@ -87,15 +96,15 @@ describe('TransferRequest.manager', () => {
 
     describe('createTransferRequest', () => {
         const payload = {
-            __token:      fromSchoolAdminToken,
-            __role:       'schoolAdmin',
-            studentId:    'stud1',
-            toSchoolId:   'sid2',
+            __token:       fromSchoolAdminToken,
+            __role:        'schoolAdmin',
+            studentNumber: 'GWH-2026-0001',
+            toSchoolId:    'sid2',
             toClassroomId: 'cid2',
         };
 
         beforeEach(() => {
-            mockMongomodels.student.findById.mockResolvedValue(mockStudent);
+            mockMongomodels.student.findOne.mockResolvedValue(mockStudent);
             mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid2', deletedAt: null });
             mockMongomodels.classroom.findById.mockResolvedValue({ _id: 'cid1', name: 'Class A' });
         });
@@ -111,11 +120,20 @@ describe('TransferRequest.manager', () => {
         });
 
         it('should return 404 if student does not exist', async () => {
-            mockMongomodels.student.findById.mockResolvedValue(null);
+            mockMongomodels.student.findOne.mockResolvedValue(null);
 
             const result = await transferRequest.createTransferRequest(payload);
 
             expect(result).toEqual({ error: 'student_not_found', code: 404 });
+        });
+
+        it('should look up student by studentNumber', async () => {
+            await transferRequest.createTransferRequest(payload);
+
+            expect(mockMongomodels.student.findOne).toHaveBeenCalledWith({
+                studentNumber: payload.studentNumber,
+                deletedAt:     null,
+            });
         });
 
         it('should return 404 if destination school does not exist', async () => {
@@ -145,11 +163,11 @@ describe('TransferRequest.manager', () => {
             expect(mockMongomodels.transferRequest.create).not.toHaveBeenCalled();
         });
 
-        it('should check for existing pending request by studentId', async () => {
+        it('should check for existing pending request by student _id', async () => {
             await transferRequest.createTransferRequest(payload);
 
             expect(mockMongomodels.transferRequest.findOne).toHaveBeenCalledWith({
-                student: payload.studentId,
+                student: mockStudent._id,
                 status:  TRANSFER_STATUSES.PENDING,
             });
         });
@@ -179,7 +197,7 @@ describe('TransferRequest.manager', () => {
 
             expect(mockMongomodels.transferRequest.create).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    student:      payload.studentId,
+                    student:      mockStudent._id,
                     fromSchool:   mockStudent.school,
                     toSchool:     payload.toSchoolId,
                     toClassroom:  payload.toClassroomId,
@@ -315,6 +333,10 @@ describe('TransferRequest.manager', () => {
     // approveTransferRequest
 
     describe('approveTransferRequest', () => {
+        beforeEach(() => {
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid2', code: 'RIV', deletedAt: null });
+        });
+
         it('should return 404 if request does not exist', async () => {
             mockMongomodels.transferRequest.findById.mockResolvedValue(null);
 
@@ -347,7 +369,17 @@ describe('TransferRequest.manager', () => {
             expect(result).toEqual({ error: 'transfer_request_not_pending', code: 409 });
         });
 
-        it('should update the student school and classroom to the transfer destination', async () => {
+        it('should generate a new student number for the destination school', async () => {
+            mockMongomodels.transferRequest.findById.mockResolvedValue(mockPendingRequest);
+
+            await transferRequest.approveTransferRequest({
+                __token: toSchoolAdminToken, __role: 'schoolAdmin', requestId: 'req1',
+            });
+
+            expect(mockManagers.student._nextStudentNumber).toHaveBeenCalledWith({ schoolCode: 'RIV' });
+        });
+
+        it('should update the student with new school, classroom, and studentNumber', async () => {
             mockMongomodels.transferRequest.findById.mockResolvedValue(mockPendingRequest);
 
             await transferRequest.approveTransferRequest({
@@ -356,7 +388,11 @@ describe('TransferRequest.manager', () => {
 
             expect(mockMongomodels.student.findByIdAndUpdate).toHaveBeenCalledWith(
                 mockPendingRequest.student,
-                { school: mockPendingRequest.toSchool, classroom: mockPendingRequest.toClassroom },
+                {
+                    school:        mockPendingRequest.toSchool,
+                    classroom:     mockPendingRequest.toClassroom,
+                    studentNumber: 'RIV-2026-0001',
+                },
             );
         });
 
