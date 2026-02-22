@@ -9,6 +9,7 @@ const studentSchema = new mongoose.Schema({
     email:      { type: String, required: true, unique: true },
     school:     { type: mongoose.Schema.Types.ObjectId, ref: SCHOOL,     required: true },
     classroom:  { type: mongoose.Schema.Types.ObjectId, ref: CLASSROOM,  default: null },
+    deletedAt:  { type: Date, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model(STUDENT, studentSchema);
