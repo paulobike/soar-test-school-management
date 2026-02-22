@@ -160,4 +160,24 @@ module.exports = {
         type:  'string',
         regex: /^[a-f\d]{24}$/i,
     },
+    requestId: {
+        path:  'requestId',
+        type:  'string',
+        regex: /^[a-f\d]{24}$/i,
+    },
+    toSchoolId: {
+        path:  'toSchoolId',
+        type:  'string',
+        regex: /^[a-f\d]{24}$/i,
+    },
+    toClassroomId: {
+        path:  'toClassroomId',
+        type:  'string',
+        regex: /^[a-f\d]{24}$/i,
+    },
+    studentNumber: {
+        path:   'studentNumber',
+        type:   'string',
+        length: { min: 3, max: 30 },
+    },
 }
