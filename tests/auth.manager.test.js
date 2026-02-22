@@ -28,6 +28,7 @@ describe('Auth.manager', () => {
             user: {
                 findOne: jest.fn(),
                 create:  jest.fn(),
+                findById:  jest.fn(),
             },
         };
 
@@ -103,6 +104,7 @@ describe('Auth.manager', () => {
 
             expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({
                 userId: mockUser._id,
+                role:   mockUser.role,
             });
         });
 
@@ -182,10 +184,11 @@ describe('Auth.manager', () => {
         it('should return a new shortToken on valid long token', async () => {
             mockTokenManager.validateLongToken.mockResolvedValue({ userId: 'uid1' });
             mockTokenManager.createShortToken.mockResolvedValue({ token: 'new_short_tok' });
+            mockMongomodels.user.findById.mockResolvedValue({ _id: 'uid1', role: 'superadmin' })
 
             const result = await auth.refreshShortToken({ longToken: 'valid_long_token' });
 
-            expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({ userId: 'uid1' });
+            expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({ userId: 'uid1', role: 'superadmin' });
             expect(result).toEqual({ shortToken: 'new_short_tok' });
         });
     });
