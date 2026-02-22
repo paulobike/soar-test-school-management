@@ -6,7 +6,8 @@ const classroomSchema = new mongoose.Schema({
     school:    { type: mongoose.Schema.Types.ObjectId, ref: SCHOOL, required: true },
     capacity:  { type: Number, required: true },
     resources: [{ type: String }],
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: USER, required: true },
+    createdBy:  { type: mongoose.Schema.Types.ObjectId, ref: USER, required: true },
+    deletedAt:  { type: Date, default: null },
 }, { timestamps: true });
 
 // name must be unique within a school

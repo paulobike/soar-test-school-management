@@ -23,16 +23,85 @@ module.exports = class Classroom {
         };
     }
 
-    async _getClassroom({ classroomId }) {}
+    async _getClassroom({ classroomId }) {
+        const classroom = await this.mongomodels.classroom.findById(classroomId);
+        if (!classroom || classroom.deletedAt) return { error: 'classroom_not_found', code: 404 };
+        return { classroom };
+    }
 
-    async createClassroom({ __token, __role, schoolId, name, capacity, resources }) {}
+    async createClassroom({ __token, __role, schoolId, name, capacity, resources }) {
+        if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== schoolId) {
+            return { error: 'forbidden', code: 403 };
+        }
 
-    async getClassrooms({ __token, __role, __pagination, schoolId }) {}
+        const validationErrors = await this.classroomValidators.createClassroom({ name, capacity, resources });
+        if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
 
-    async getClassroom({ __token, __role, classroomId }) {}
+        const created = await this.mongomodels.classroom.create({
+            name, capacity, resources,
+            school:    schoolId,
+            createdBy: __token.userId,
+        });
+        return { classroom: created };
+    }
 
-    async updateClassroom({ __token, __role, classroomId, name, capacity, resources }) {}
+    async getClassrooms({ __token, __role, __pagination, schoolId }) {
+        if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== schoolId) {
+            return { error: 'forbidden', code: 403 };
+        }
 
-    async deleteClassroom({ __token, __role, classroomId }) {}
+        const { page, limit, skip } = __pagination;
+        const [classrooms, total] = await Promise.all([
+            this.mongomodels.classroom.find({ school: schoolId, deletedAt: null }).skip(skip).limit(limit),
+            this.mongomodels.classroom.countDocuments({ school: schoolId, deletedAt: null }),
+        ]);
+        return { classrooms, total, page, limit };
+    }
+
+    async getClassroom({ __token, __role, classroomId }) {
+        const { error, code, classroom } = await this._getClassroom({ classroomId });
+        if (error) return { error, code };
+
+        if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== classroom.school?.toString()) {
+            return { error: 'forbidden', code: 403 };
+        }
+
+        return { classroom };
+    }
+
+    async updateClassroom({ __token, __role, classroomId, name, capacity, resources }) {
+        const lookup = await this._getClassroom({ classroomId });
+        if (lookup.error) return { error: lookup.error, code: lookup.code };
+
+        if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== lookup.classroom.school?.toString()) {
+            return { error: 'forbidden', code: 403 };
+        }
+
+        const validationErrors = await this.classroomValidators.updateClassroom({ name, capacity, resources });
+        if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
+
+        const updates = {};
+        if (name      !== undefined) updates.name      = name;
+        if (capacity  !== undefined) updates.capacity  = capacity;
+        if (resources !== undefined) updates.resources = resources;
+
+        const updated = await this.mongomodels.classroom.findByIdAndUpdate(classroomId, updates, { new: true });
+        return { classroom: updated };
+    }
+
+    async deleteClassroom({ __token, __role, classroomId }) {
+        const lookup = await this._getClassroom({ classroomId });
+        if (lookup.error) return { error: lookup.error, code: lookup.code };
+
+        if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== lookup.classroom.school?.toString()) {
+            return { error: 'forbidden', code: 403 };
+        }
+
+        const hasStudents = await this.mongomodels.student.exists({ classroom: classroomId, deletedAt: null });
+        if (hasStudents) return { error: 'classroom_has_students', code: 409 };
+
+        await this.mongomodels.classroom.findByIdAndUpdate(classroomId, { deletedAt: new Date() });
+        return { success: true };
+    }
 
 }
