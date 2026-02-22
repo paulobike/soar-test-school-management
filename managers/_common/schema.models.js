@@ -108,12 +108,12 @@ module.exports = {
         oneOf: ['longToken'],
     },
     firstName: {
-        path: 'firstName',
+        path: 'firstname',
         type: 'string',
         length: { min: 2, max: 50 },
     },
     lastName: {
-        path: 'lastName',
+        path: 'lastname',
         type: 'string',
         length: { min: 2, max: 50 },
     },

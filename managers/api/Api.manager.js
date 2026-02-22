@@ -180,7 +180,7 @@ module.exports = class ApiHandler {
                 if(result.errors){
                     return this.managers.responseDispatcher.dispatch(res, {ok: false, errors: result.errors, message: result.message});
                 } else if(result.error){
-                    return this.managers.responseDispatcher.dispatch(res, {ok: false, message: result.error});
+                    return this.managers.responseDispatcher.dispatch(res, {ok: false, message: result.error, code: result.code || 500});
                 } else {
                     const responseModel = this.responses[moduleName] && this.responses[moduleName][fnName];
                     const data = responseModel ? this._filterResponse(result, responseModel) : result;

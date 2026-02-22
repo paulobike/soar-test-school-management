@@ -1,4 +1,5 @@
-const bcrypt = require('bcrypt');
+const bcrypt        = require('bcrypt');
+const { ROLES }     = require('../../../managers/_common/enums');
 
 module.exports = class Auth {
 
@@ -7,7 +8,19 @@ module.exports = class Auth {
         this.tokenManager = managers.token;
         this.userManager  = managers.user;
         this.authValidators   = validators.auth;
-        this.httpExposed  = ['login', 'logout', 'get=me', 'refreshShortToken'];
+        this.httpExposed  = ['setupSuperadmin', 'login', 'logout', 'get=me', 'refreshShortToken'];
+    }
+
+    async setupSuperadmin({ firstname, lastname, email, password }) {
+        const validationErrors = await this.authValidators.setupSuperadmin({ firstname, lastname, email, password });
+        if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
+
+        const existing = await this.mongomodels.user.findOne({ role: ROLES.SUPERADMIN });
+        if (existing) return { error: 'not_found', code: 404 };
+
+        const created = await this.mongomodels.user.create({ firstname, lastname, email, password, role: ROLES.SUPERADMIN });
+        const { password: _, ...sanitizedUser } = created.toObject ? created.toObject() : created;
+        return { user: sanitizedUser };
     }
 
     async login({ email, password, device, ip }) {

@@ -27,14 +27,16 @@ describe('Auth.manager', () => {
         mockMongomodels = {
             user: {
                 findOne: jest.fn(),
+                create:  jest.fn(),
             },
         };
 
         mockValidators = {
             auth: {
-                login:             jest.fn().mockResolvedValue(null),
-                logout:            jest.fn().mockResolvedValue(null),
-                refreshShortToken: jest.fn().mockResolvedValue(null),
+                login:              jest.fn().mockResolvedValue(null),
+                logout:             jest.fn().mockResolvedValue(null),
+                refreshShortToken:  jest.fn().mockResolvedValue(null),
+                setupSuperadmin:    jest.fn().mockResolvedValue(null),
             },
         };
 
@@ -185,6 +187,60 @@ describe('Auth.manager', () => {
 
             expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({ userId: 'uid1' });
             expect(result).toEqual({ shortToken: 'new_short_tok' });
+        });
+    });
+
+    // Setup Superadmin
+
+    describe('setupSuperadmin', () => {
+        const payload = {
+            firstname: 'Super',
+            lastname:  'Admin',
+            email:     'superadmin@school.com',
+            password:  'secret123',
+        };
+
+        it('should return error if a superadmin already exists', async () => {
+            mockMongomodels.user.findOne.mockResolvedValue({ _id: 'uid1', role: 'superadmin' });
+
+            const result = await auth.setupSuperadmin(payload);
+
+            expect(result).toEqual({ error: 'not_found', code: 404 });
+        });
+
+        it('should call findOne with superadmin role to check for existing superadmin', async () => {
+            mockMongomodels.user.findOne.mockResolvedValue(null);
+            mockMongomodels.user.create.mockResolvedValue({ ...payload, _id: 'uid1' });
+
+            await auth.setupSuperadmin(payload);
+
+            expect(mockMongomodels.user.findOne).toHaveBeenCalledWith({ role: 'superadmin' });
+        });
+
+        it('should create user with superadmin role', async () => {
+            mockMongomodels.user.findOne.mockResolvedValue(null);
+            mockMongomodels.user.create.mockResolvedValue({ ...payload, _id: 'uid1' });
+
+            await auth.setupSuperadmin(payload);
+
+            expect(mockMongomodels.user.create).toHaveBeenCalledWith({
+                firstname: payload.firstname,
+                lastname:  payload.lastname,
+                email:     payload.email,
+                password:  payload.password,
+                role:      'superadmin',
+            });
+        });
+
+        it('should return user without password on success', async () => {
+            const created = { _id: 'uid1', firstname: payload.firstname, lastname: payload.lastname, email: payload.email, password: 'hashed', role: 'superadmin' };
+            mockMongomodels.user.findOne.mockResolvedValue(null);
+            mockMongomodels.user.create.mockResolvedValue(created);
+
+            const result = await auth.setupSuperadmin(payload);
+
+            expect(result.user.password).toBeUndefined();
+            expect(result.user.email).toBe(payload.email);
         });
     });
 

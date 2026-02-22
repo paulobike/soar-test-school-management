@@ -181,3 +181,40 @@ All responses follow this shape:
 ```
 
 Return `{ error: 'message' }` from a function for a `400`. Return `{ errors: [...] }` for validation errors. Anything else is treated as success and placed in `data`.
+
+---
+
+## Initial Superadmin Setup
+
+The first superadmin must be created via a one-time endpoint that disables itself after use.
+
+**Endpoint:** `POST /api/auth/setupSuperadmin`
+
+**Request body:**
+```json
+{
+  "firstname": "John",
+  "lastname":  "Doe",
+  "email":     "admin@example.com",
+  "password":  "strongpassword"
+}
+```
+
+**Success response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "user": {
+      "_id":       "...",
+      "firstname": "John",
+      "lastname":  "Doe",
+      "email":     "admin@example.com",
+      "role":      "superadmin"
+    }
+  }
+}
+```
+
+> Once a superadmin exists, all subsequent calls to this endpoint return `404`.
+> Use `POST /api/auth/login` to obtain tokens after setup.

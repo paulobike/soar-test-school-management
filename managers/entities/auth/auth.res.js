@@ -1,4 +1,13 @@
 module.exports = {
+    setupSuperadmin: {
+        user: {
+            _id:       { model: 'id' },
+            firstname: { model: 'firstName' },
+            lastname:  { model: 'lastName' },
+            email:     { model: 'email' },
+            role:      { model: 'role' },
+        },
+    },
     login: {
         longToken:  { type: 'string' },
         shortToken: { type: 'string' },
