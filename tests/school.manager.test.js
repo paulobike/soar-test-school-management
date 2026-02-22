@@ -4,11 +4,16 @@ describe('School.manager', () => {
     let school;
     let mockMongomodels;
     let mockValidators;
+    let mockManagers;
 
     const superadminToken = { userId: 'admin1', role: 'superadmin' };
 
     beforeEach(() => {
         jest.clearAllMocks();
+
+        mockManagers = {
+            auditLog: { log: jest.fn().mockResolvedValue(undefined) },
+        };
 
         mockMongomodels = {
             school: {
@@ -39,6 +44,7 @@ describe('School.manager', () => {
         };
 
         school = new School({
+            managers:    mockManagers,
             mongomodels: mockMongomodels,
             validators:  mockValidators,
         });
@@ -260,8 +266,9 @@ describe('School.manager', () => {
         });
 
         it('should return the updated school on success', async () => {
-            const updated = { _id: 'sid1', name: payload.name };
-            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1' });
+            const existing = { _id: 'sid1' };
+            const updated  = { _id: 'sid1', name: payload.name };
+            mockMongomodels.school.findById.mockResolvedValue(existing);
             mockMongomodels.school.findByIdAndUpdate.mockResolvedValue(updated);
 
             const result = await school.updateSchool(payload);

@@ -37,7 +37,7 @@ describe('TransferRequest.manager', () => {
                 findOne:           jest.fn().mockResolvedValue(null),
                 find:              jest.fn(),
                 countDocuments:    jest.fn(),
-                create:            jest.fn(),
+                create:            jest.fn().mockResolvedValue({ _id: 'req1' }),
                 findByIdAndUpdate: jest.fn().mockResolvedValue({}),
             },
             student: {
@@ -60,9 +60,8 @@ describe('TransferRequest.manager', () => {
         };
 
         mockManagers = {
-            student: {
-                _nextStudentNumber: jest.fn().mockResolvedValue('RIV-2026-0001'),
-            },
+            student:  { _nextStudentNumber: jest.fn().mockResolvedValue('RIV-2026-0001') },
+            auditLog: { log: jest.fn().mockResolvedValue(undefined) },
         };
 
         transferRequest = new TransferRequest({

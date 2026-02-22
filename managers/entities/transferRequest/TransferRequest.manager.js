@@ -1,4 +1,4 @@
-const { ROLES, TRANSFER_STATUSES } = require('../../_common/enums');
+const { ROLES, TRANSFER_STATUSES, AUDIT_ACTIONS, AUDIT_RESOURCES } = require('../../_common/enums');
 
 module.exports = class TransferRequest {
 
@@ -7,6 +7,7 @@ module.exports = class TransferRequest {
         this.cortex                     = cortex;
         this.mongomodels                = mongomodels;
         this.studentManager             = managers.student;
+        this.auditLog                   = managers.auditLog;
         this.transferRequestValidators  = validators.transferRequest;
         this.httpExposed                = [
             'post=createTransferRequest',
@@ -68,6 +69,7 @@ module.exports = class TransferRequest {
             status:      TRANSFER_STATUSES.PENDING,
             snapshot,
         });
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.CREATE, resource: AUDIT_RESOURCES.TRANSFER_REQUEST, resourceId: created._id, changes: { before: null, after: created } });
         return { transferRequest: created };
     }
 
@@ -123,6 +125,7 @@ module.exports = class TransferRequest {
             { status: TRANSFER_STATUSES.APPROVED, respondedBy: __token.userId, respondedAt: new Date() },
             { new: true },
         );
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.APPROVE, resource: AUDIT_RESOURCES.TRANSFER_REQUEST, resourceId: requestId, changes: { before: transferRequest, after: updated } });
         return { transferRequest: updated };
     }
 
@@ -143,6 +146,7 @@ module.exports = class TransferRequest {
             { status: TRANSFER_STATUSES.REJECTED, respondedBy: __token.userId, respondedAt: new Date() },
             { new: true },
         );
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.REJECT, resource: AUDIT_RESOURCES.TRANSFER_REQUEST, resourceId: requestId, changes: { before: transferRequest, after: updated } });
         return { transferRequest: updated };
     }
 

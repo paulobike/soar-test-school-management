@@ -1,4 +1,4 @@
-const { ROLES } = require('../../_common/enums');
+const { ROLES, AUDIT_ACTIONS, AUDIT_RESOURCES } = require('../../_common/enums');
 
 module.exports = class Classroom {
 
@@ -6,6 +6,7 @@ module.exports = class Classroom {
         this.config               = config;
         this.cortex               = cortex;
         this.mongomodels          = mongomodels;
+        this.auditLog             = managers.auditLog;
         this.classroomValidators  = validators.classroom;
         this.httpExposed          = [
             'post=createClassroom',
@@ -42,6 +43,7 @@ module.exports = class Classroom {
             school:    schoolId,
             createdBy: __token.userId,
         });
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.CREATE, resource: AUDIT_RESOURCES.CLASSROOM, resourceId: created._id, changes: { before: null, after: created } });
         return { classroom: created };
     }
 
@@ -86,6 +88,7 @@ module.exports = class Classroom {
         if (resources !== undefined) updates.resources = resources;
 
         const updated = await this.mongomodels.classroom.findByIdAndUpdate(classroomId, updates, { new: true });
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.UPDATE, resource: AUDIT_RESOURCES.CLASSROOM, resourceId: classroomId, changes: { before: lookup.classroom, after: updated } });
         return { classroom: updated };
     }
 
@@ -101,6 +104,7 @@ module.exports = class Classroom {
         if (hasStudents) return { error: 'classroom_has_students', code: 409 };
 
         await this.mongomodels.classroom.findByIdAndUpdate(classroomId, { deletedAt: new Date() });
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.DELETE, resource: AUDIT_RESOURCES.CLASSROOM, resourceId: classroomId, changes: { before: lookup.classroom, after: null } });
         return { success: true };
     }
 

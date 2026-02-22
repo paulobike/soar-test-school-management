@@ -4,12 +4,17 @@ describe('Classroom.manager', () => {
     let classroom;
     let mockMongomodels;
     let mockValidators;
+    let mockManagers;
 
     const superadminToken   = { userId: 'admin1', role: 'superadmin' };
     const schoolAdminToken  = { userId: 'admin2', role: 'schoolAdmin', school: 'sid1' };
 
     beforeEach(() => {
         jest.clearAllMocks();
+
+        mockManagers = {
+            auditLog: { log: jest.fn().mockResolvedValue(undefined) },
+        };
 
         mockMongomodels = {
             classroom: {
@@ -32,6 +37,7 @@ describe('Classroom.manager', () => {
         };
 
         classroom = new Classroom({
+            managers:    mockManagers,
             mongomodels: mockMongomodels,
             validators:  mockValidators,
         });

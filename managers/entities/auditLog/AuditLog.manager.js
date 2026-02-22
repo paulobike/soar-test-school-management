@@ -7,7 +7,11 @@ module.exports = class AuditLog {
     }
 
     async log({ actor, action, resource, resourceId, changes = {} }) {
-        // stub
+        try {
+            await this.mongomodels.auditLog.create({ actor, action, resource, resourceId, changes });
+        } catch (err) {
+            console.error('Audit log failed:', err);
+        }
     }
 
 }

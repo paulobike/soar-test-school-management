@@ -1,4 +1,4 @@
-const { ROLES } = require('../../_common/enums');
+const { ROLES, AUDIT_ACTIONS, AUDIT_RESOURCES } = require('../../_common/enums');
 
 module.exports = class School {
 
@@ -6,6 +6,7 @@ module.exports = class School {
         this.config           = config;
         this.cortex           = cortex;
         this.mongomodels      = mongomodels;
+        this.auditLog         = managers.auditLog;
         this.schoolValidators = validators.school;
         this.httpExposed      = [
             'post=createSchool',
@@ -45,6 +46,7 @@ module.exports = class School {
         if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
 
         const created = await this.mongomodels.school.create({ name, code, address, phone, email, maxCapacity, createdBy: __token.userId });
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.CREATE, resource: AUDIT_RESOURCES.SCHOOL, resourceId: created._id, changes: { before: null, after: created } });
         return { school: created };
     }
 
@@ -79,6 +81,7 @@ module.exports = class School {
         if (maxCapacity !== undefined) updates.maxCapacity = maxCapacity;
 
         const updated = await this.mongomodels.school.findByIdAndUpdate(schoolId, updates, { new: true });
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.UPDATE, resource: AUDIT_RESOURCES.SCHOOL, resourceId: schoolId, changes: { before: lookup.school, after: updated } });
         return { school: updated };
     }
 
@@ -92,6 +95,7 @@ module.exports = class School {
         const now = new Date();
         await this.mongomodels.classroom.updateMany({ school: schoolId, deletedAt: null }, { deletedAt: now });
         await this.mongomodels.school.findByIdAndUpdate(schoolId, { deletedAt: now });
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.DELETE, resource: AUDIT_RESOURCES.SCHOOL, resourceId: schoolId, changes: { before: lookup.school, after: null } });
         return { success: true };
     }
 
@@ -104,6 +108,7 @@ module.exports = class School {
 
         const created = await this.mongomodels.user.create({ firstname, lastname, email, password, role: ROLES.SCHOOL_ADMIN, school: schoolId });
         const { password: _, ...sanitizedUser } = created.toObject ? created.toObject() : created;
+        await this.auditLog.log({ actor: __token.userId, action: AUDIT_ACTIONS.CREATE, resource: AUDIT_RESOURCES.USER, resourceId: created._id, changes: { before: null, after: sanitizedUser } });
         return { user: sanitizedUser };
     }
 
