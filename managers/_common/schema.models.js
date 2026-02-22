@@ -150,4 +150,9 @@ module.exports = {
         type:  'string',
         regex: /^[a-f\d]{24}$/i,
     },
+    classroomId: {
+        path:  'classroomId',
+        type:  'string',
+        regex: /^[a-f\d]{24}$/i,
+    },
 }
