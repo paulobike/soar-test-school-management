@@ -23,6 +23,13 @@ module.exports = class TransferRequest {
             approveTransferRequest: [ROLES.SUPERADMIN, ROLES.SCHOOL_ADMIN],
             rejectTransferRequest:  [ROLES.SUPERADMIN, ROLES.SCHOOL_ADMIN],
         };
+        this.rateLimits = {
+            createTransferRequest:  { window: 60, max: 20 },
+            getTransferRequests:    { window: 60, max: 60 },
+            getTransferRequest:     { window: 60, max: 60 },
+            approveTransferRequest: { window: 60, max: 30 },
+            rejectTransferRequest:  { window: 60, max: 30 },
+        };
     }
 
     async _getTransferRequest({ requestId }) {
@@ -31,7 +38,7 @@ module.exports = class TransferRequest {
         return { transferRequest: req };
     }
 
-    async createTransferRequest({ __token, __role, studentNumber, toSchoolId, toClassroomId }) {
+    async createTransferRequest({ __token, __role, __rateLimit, studentNumber, toSchoolId, toClassroomId }) {
         const student = await this.mongomodels.student.findOne({ studentNumber, deletedAt: null });
         if (!student) return { error: 'student_not_found', code: 404 };
 
@@ -73,7 +80,7 @@ module.exports = class TransferRequest {
         return { transferRequest: created };
     }
 
-    async getTransferRequests({ __token, __role, __pagination }) {
+    async getTransferRequests({ __token, __role, __rateLimit, __pagination }) {
         const { page, limit, skip } = __pagination;
         const filter = __token.role === ROLES.SCHOOL_ADMIN
             ? { $or: [{ fromSchool: __token.school }, { toSchool: __token.school }] }
@@ -86,7 +93,7 @@ module.exports = class TransferRequest {
         return { transferRequests, total, page, limit };
     }
 
-    async getTransferRequest({ __token, __role, requestId }) {
+    async getTransferRequest({ __token, __role, __rateLimit, requestId }) {
         const { error, code, transferRequest } = await this._getTransferRequest({ requestId });
         if (error) return { error, code };
 
@@ -100,7 +107,7 @@ module.exports = class TransferRequest {
         return { transferRequest };
     }
 
-    async approveTransferRequest({ __token, __role, requestId }) {
+    async approveTransferRequest({ __token, __role, __rateLimit, requestId }) {
         const { error, code, transferRequest } = await this._getTransferRequest({ requestId });
         if (error) return { error, code };
 
@@ -129,7 +136,7 @@ module.exports = class TransferRequest {
         return { transferRequest: updated };
     }
 
-    async rejectTransferRequest({ __token, __role, requestId }) {
+    async rejectTransferRequest({ __token, __role, __rateLimit, requestId }) {
         const { error, code, transferRequest } = await this._getTransferRequest({ requestId });
         if (error) return { error, code };
 

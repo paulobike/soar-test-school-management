@@ -22,6 +22,13 @@ module.exports = class Classroom {
             updateClassroom: [ROLES.SUPERADMIN, ROLES.SCHOOL_ADMIN],
             deleteClassroom: [ROLES.SUPERADMIN, ROLES.SCHOOL_ADMIN],
         };
+        this.rateLimits = {
+            createClassroom: { window: 60, max: 30 },
+            getClassrooms:   { window: 60, max: 60 },
+            getClassroom:    { window: 60, max: 60 },
+            updateClassroom: { window: 60, max: 30 },
+            deleteClassroom: { window: 60, max: 10 },
+        };
     }
 
     async _getClassroom({ classroomId }) {
@@ -30,7 +37,7 @@ module.exports = class Classroom {
         return { classroom };
     }
 
-    async createClassroom({ __token, __role, schoolId, name, capacity, resources }) {
+    async createClassroom({ __token, __role, __rateLimit, schoolId, name, capacity, resources }) {
         if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== schoolId) {
             return { error: 'forbidden', code: 403 };
         }
@@ -47,7 +54,7 @@ module.exports = class Classroom {
         return { classroom: created };
     }
 
-    async getClassrooms({ __token, __role, __pagination, schoolId }) {
+    async getClassrooms({ __token, __role, __rateLimit, __pagination, schoolId }) {
         if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== schoolId) {
             return { error: 'forbidden', code: 403 };
         }
@@ -60,7 +67,7 @@ module.exports = class Classroom {
         return { classrooms, total, page, limit };
     }
 
-    async getClassroom({ __token, __role, classroomId }) {
+    async getClassroom({ __token, __role, __rateLimit, classroomId }) {
         const { error, code, classroom } = await this._getClassroom({ classroomId });
         if (error) return { error, code };
 
@@ -71,7 +78,7 @@ module.exports = class Classroom {
         return { classroom };
     }
 
-    async updateClassroom({ __token, __role, classroomId, name, capacity, resources }) {
+    async updateClassroom({ __token, __role, __rateLimit, classroomId, name, capacity, resources }) {
         const lookup = await this._getClassroom({ classroomId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 
@@ -92,7 +99,7 @@ module.exports = class Classroom {
         return { classroom: updated };
     }
 
-    async deleteClassroom({ __token, __role, classroomId }) {
+    async deleteClassroom({ __token, __role, __rateLimit, classroomId }) {
         const lookup = await this._getClassroom({ classroomId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 

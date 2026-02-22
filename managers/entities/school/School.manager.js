@@ -24,6 +24,14 @@ module.exports = class School {
             deleteSchool:      [ROLES.SUPERADMIN],
             createSchoolAdmin: [ROLES.SUPERADMIN],
         };
+        this.rateLimits = {
+            createSchool:      { window: 60, max: 20 },
+            getSchools:        { window: 60, max: 60 },
+            getSchool:         { window: 60, max: 60 },
+            updateSchool:      { window: 60, max: 20 },
+            deleteSchool:      { window: 60, max: 10 },
+            createSchoolAdmin: { window: 60, max: 10 },
+        };
     }
 
     async _getSchool({ schoolId }) {
@@ -32,7 +40,7 @@ module.exports = class School {
         return { school };
     }
 
-    async getSchools({ __token, __role, __pagination }) {
+    async getSchools({ __token, __role, __rateLimit, __pagination }) {
         const { page, limit, skip } = __pagination;
         const [schools, total] = await Promise.all([
             this.mongomodels.school.find({ deletedAt: null }).skip(skip).limit(limit),
@@ -41,7 +49,7 @@ module.exports = class School {
         return { schools, total, page, limit };
     }
 
-    async createSchool({ __token, __role, name, code, address, phone, email, maxCapacity }) {
+    async createSchool({ __token, __role, __rateLimit, name, code, address, phone, email, maxCapacity }) {
         const validationErrors = await this.schoolValidators.createSchool({ name, code, address, phone, email, maxCapacity });
         if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
 
@@ -50,7 +58,7 @@ module.exports = class School {
         return { school: created };
     }
 
-    async getSchool({ __token, __role, schoolId }) {
+    async getSchool({ __token, __role, __rateLimit, schoolId }) {
         const { error, code, school } = await this._getSchool({ schoolId });
         if (error) return { error, code };
 
@@ -61,7 +69,7 @@ module.exports = class School {
         return { school };
     }
 
-    async updateSchool({ __token, __role, schoolId, name, code, address, phone, email, maxCapacity }) {
+    async updateSchool({ __token, __role, __rateLimit, schoolId, name, code, address, phone, email, maxCapacity }) {
         const lookup = await this._getSchool({ schoolId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 
@@ -85,7 +93,7 @@ module.exports = class School {
         return { school: updated };
     }
 
-    async deleteSchool({ __token, __role, schoolId }) {
+    async deleteSchool({ __token, __role, __rateLimit, schoolId }) {
         const lookup = await this._getSchool({ schoolId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 
@@ -99,7 +107,7 @@ module.exports = class School {
         return { success: true };
     }
 
-    async createSchoolAdmin({ __token, __role, schoolId, firstname, lastname, email, password }) {
+    async createSchoolAdmin({ __token, __role, __rateLimit, schoolId, firstname, lastname, email, password }) {
         const lookup = await this._getSchool({ schoolId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 

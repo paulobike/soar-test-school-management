@@ -167,6 +167,89 @@ Field definitions:
 
 Response models are also used to generate the OpenAPI spec automatically.
 
+### Role-Based Access Control
+
+Managers declare which roles may call each method via `this.roles`:
+
+```js
+this.roles = {
+    createSchool: [ROLES.SUPERADMIN],
+    getSchool:    [ROLES.SUPERADMIN, ROLES.SCHOOL_ADMIN],
+};
+```
+
+The `__role` middleware reads this map at request time and returns `403` if the caller's role is not listed. Methods without a `roles` entry are accessible to any authenticated caller.
+
+Roles: `superadmin`, `schoolAdmin`.
+
+School admins are additionally ownership-scoped — their JWT embeds their `school` ID and each manager checks it against the requested resource.
+
+---
+
+### Rate Limiting
+
+The `__rateLimit` middleware enforces per-endpoint request limits backed by Redis. It uses a **fixed-window counter** — a single atomic `HINCRBY` per request, no external library.
+
+**Enabling rate limiting on a method — two steps:**
+
+**1.** Add `__rateLimit` to the method signature (order controls when it runs relative to other middleware):
+
+```js
+async createSchool({ __token, __role, __rateLimit, name, code }) { ... }
+```
+
+**2.** Add the endpoint to `this.rateLimits` in the constructor:
+
+```js
+this.rateLimits = {
+    createSchool: { window: 60, max: 20 },  // 20 req / 60s per user
+};
+```
+
+No registration or imports needed. The framework discovers `rateLimits` automatically.
+
+**Identifier** — authenticated requests are limited per `userId`; unauthenticated requests (e.g. `login`) are limited per `ip`.
+
+**Redis key format:**
+```
+rl:{identifier}:{moduleName}:{fnName}:{windowSlot}
+```
+
+Each window slot is `Math.floor(Date.now() / windowMs)`, so keys roll over automatically and are cleaned up via TTL.
+
+**Response headers** set on every rate-limited endpoint:
+
+| Header | Value |
+|---|---|
+| `X-RateLimit-Limit` | Configured `max` |
+| `X-RateLimit-Remaining` | Requests remaining in the current window |
+| `X-RateLimit-Reset` | Unix timestamp when the window resets |
+
+Exceeding the limit returns **HTTP 429** `rate_limit_exceeded`. If Redis is unavailable the middleware **fails open** — requests pass through and the error is logged.
+
+**Default limits by category:**
+
+| Category | Window | Max |
+|---|---|---|
+| `login` | 60s | 5 |
+| `setupSuperadmin` | 60s | 3 |
+| `delete*` | 60s | 10 |
+| `create*` / `update*` | 60s | 20–30 |
+| `get*` (reads) | 60s | 60 |
+
+---
+
+### Audit Logging
+
+All mutating operations write a non-blocking entry to the `AuditLog` collection via `managers.auditLog.log(...)`. Failures are swallowed so a cache/DB issue never fails the primary request.
+
+Each entry captures: `actor` (userId), `action`, `resource`, `resourceId`, `changes.before`, `changes.after`.
+
+Actions: `create`, `update`, `delete`, `approve`, `reject`, `transfer`.
+Resources: `school`, `classroom`, `student`, `transferRequest`, `user`.
+
+---
+
 ### Standard Response Envelope
 
 All responses follow this shape:

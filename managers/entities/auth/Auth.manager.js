@@ -9,9 +9,16 @@ module.exports = class Auth {
         this.userManager  = managers.user;
         this.authValidators   = validators.auth;
         this.httpExposed  = ['setupSuperadmin', 'login', 'logout', 'get=me', 'refreshShortToken'];
+        this.rateLimits   = {
+            setupSuperadmin:  { window: 60, max: 3  },
+            login:            { window: 60, max: 5  },
+            logout:           { window: 60, max: 30 },
+            me:               { window: 60, max: 60 },
+            refreshShortToken:{ window: 60, max: 30 },
+        };
     }
 
-    async setupSuperadmin({ firstname, lastname, email, password }) {
+    async setupSuperadmin({ __rateLimit, firstname, lastname, email, password }) {
         const validationErrors = await this.authValidators.setupSuperadmin({ firstname, lastname, email, password });
         if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
 
@@ -23,7 +30,7 @@ module.exports = class Auth {
         return { user: sanitizedUser };
     }
 
-    async login({ email, password, device, ip }) {
+    async login({ __rateLimit, email, password, device, ip }) {
         const validationErrors = await this.authValidators.login({ email, password });
         if (validationErrors) return { errors: validationErrors, message: "request_validation_error" };
 
@@ -42,18 +49,18 @@ module.exports = class Auth {
         return { longToken: longTokenResult.token, shortToken: shortTokenResult.token, user: sanitizedUser };
     }
 
-    async logout({ longToken }) {
+    async logout({ __rateLimit, longToken }) {
         const validationErrors = await this.authValidators.logout({ longToken });
         if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
 
         return this.tokenManager.revokeLongToken({ token: longToken });
     }
 
-    async me({ __token }) {
+    async me({ __token, __rateLimit }) {
         return this.userManager.getUser({ userId: __token.userId });
     }
 
-    async refreshShortToken({ longToken }) {
+    async refreshShortToken({ __rateLimit, longToken }) {
         const validationErrors = await this.authValidators.refreshShortToken({ longToken });
         if (validationErrors) return { errors: validationErrors, message: 'request_validation_error' };
 

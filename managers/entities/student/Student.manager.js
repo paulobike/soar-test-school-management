@@ -22,6 +22,13 @@ module.exports = class Student {
             updateStudent: [ROLES.SUPERADMIN, ROLES.SCHOOL_ADMIN],
             deleteStudent: [ROLES.SUPERADMIN, ROLES.SCHOOL_ADMIN],
         };
+        this.rateLimits = {
+            createStudent: { window: 60, max: 30 },
+            getStudents:   { window: 60, max: 60 },
+            getStudent:    { window: 60, max: 60 },
+            updateStudent: { window: 60, max: 30 },
+            deleteStudent: { window: 60, max: 10 },
+        };
     }
 
     async _getStudent({ studentId }) {
@@ -40,7 +47,7 @@ module.exports = class Student {
         return `${schoolCode}-${year}-${String(counter.seq).padStart(4, '0')}`;
     }
 
-    async createStudent({ __token, __role, schoolId, classroomId, firstname, lastname, email }) {
+    async createStudent({ __token, __role, __rateLimit, schoolId, classroomId, firstname, lastname, email }) {
         if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== schoolId) {
             return { error: 'forbidden', code: 403 };
         }
@@ -60,7 +67,7 @@ module.exports = class Student {
         return { student: created };
     }
 
-    async getStudents({ __token, __role, __pagination, schoolId }) {
+    async getStudents({ __token, __role, __rateLimit, __pagination, schoolId }) {
         if (__token.role === ROLES.SCHOOL_ADMIN && __token.school?.toString() !== schoolId) {
             return { error: 'forbidden', code: 403 };
         }
@@ -73,7 +80,7 @@ module.exports = class Student {
         return { students, total, page, limit };
     }
 
-    async getStudent({ __token, __role, studentId }) {
+    async getStudent({ __token, __role, __rateLimit, studentId }) {
         const { error, code, student } = await this._getStudent({ studentId });
         if (error) return { error, code };
 
@@ -84,7 +91,7 @@ module.exports = class Student {
         return { student };
     }
 
-    async updateStudent({ __token, __role, studentId, firstname, lastname, email, classroomId }) {
+    async updateStudent({ __token, __role, __rateLimit, studentId, firstname, lastname, email, classroomId }) {
         const lookup = await this._getStudent({ studentId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 
@@ -106,7 +113,7 @@ module.exports = class Student {
         return { student: updated };
     }
 
-    async deleteStudent({ __token, __role, studentId }) {
+    async deleteStudent({ __token, __role, __rateLimit, studentId }) {
         const lookup = await this._getStudent({ studentId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 
