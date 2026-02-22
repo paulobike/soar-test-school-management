@@ -233,7 +233,7 @@ module.exports = class DocsManager {
                 description: `Auto-generated API docs for ${this.config.dotEnv.SERVICE_NAME}`,
             },
             servers: [
-                { url: `http://localhost:${this.config.dotEnv.USER_PORT}` }
+                { url: this.config.dotEnv.SERVICE_URL }
             ],
             components: {
                 securitySchemes: {
