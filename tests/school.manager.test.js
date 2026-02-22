@@ -13,6 +13,8 @@ describe('School.manager', () => {
         mockMongomodels = {
             school: {
                 findById:          jest.fn(),
+                find:              jest.fn(),
+                countDocuments:    jest.fn(),
                 create:            jest.fn(),
                 findByIdAndUpdate: jest.fn().mockResolvedValue({}),
             },
@@ -127,25 +129,49 @@ describe('School.manager', () => {
     // getSchools
 
     describe('getSchools', () => {
-        it('should return all non-soft-deleted schools', async () => {
-            const mockSchools = [
-                { _id: 'sid1', name: 'Greenwood High',  deletedAt: null },
-                { _id: 'sid2', name: 'Riverside Middle', deletedAt: null },
-            ];
-            mockMongomodels.school.find = jest.fn().mockResolvedValue(mockSchools);
+        const pagination = { page: 1, limit: 20, skip: 0 };
 
-            const result = await school.getSchools({ __token: superadminToken, __role: 'superadmin' });
+        beforeEach(() => {
+            mockMongomodels.school.find.mockReturnValue({
+                skip:  jest.fn().mockReturnThis(),
+                limit: jest.fn().mockResolvedValue([]),
+            });
+            mockMongomodels.school.countDocuments.mockResolvedValue(0);
+        });
+
+        it('should query only non-soft-deleted schools', async () => {
+            await school.getSchools({ __token: superadminToken, __role: 'superadmin', __pagination: pagination });
 
             expect(mockMongomodels.school.find).toHaveBeenCalledWith({ deletedAt: null });
-            expect(result).toEqual({ schools: mockSchools });
+        });
+
+        it('should apply skip and limit from __pagination', async () => {
+            const chainMock = { skip: jest.fn().mockReturnThis(), limit: jest.fn().mockResolvedValue([]) };
+            mockMongomodels.school.find.mockReturnValue(chainMock);
+
+            await school.getSchools({ __token: superadminToken, __role: 'superadmin', __pagination: { page: 2, limit: 10, skip: 10 } });
+
+            expect(chainMock.skip).toHaveBeenCalledWith(10);
+            expect(chainMock.limit).toHaveBeenCalledWith(10);
+        });
+
+        it('should return schools, total, page, and limit', async () => {
+            const mockSchools = [{ _id: 'sid1', name: 'Greenwood High' }];
+            mockMongomodels.school.find.mockReturnValue({
+                skip:  jest.fn().mockReturnThis(),
+                limit: jest.fn().mockResolvedValue(mockSchools),
+            });
+            mockMongomodels.school.countDocuments.mockResolvedValue(1);
+
+            const result = await school.getSchools({ __token: superadminToken, __role: 'superadmin', __pagination: pagination });
+
+            expect(result).toEqual({ schools: mockSchools, total: 1, page: 1, limit: 20 });
         });
 
         it('should return an empty array if no schools exist', async () => {
-            mockMongomodels.school.find = jest.fn().mockResolvedValue([]);
+            const result = await school.getSchools({ __token: superadminToken, __role: 'superadmin', __pagination: pagination });
 
-            const result = await school.getSchools({ __token: superadminToken, __role: 'superadmin' });
-
-            expect(result).toEqual({ schools: [] });
+            expect(result).toEqual({ schools: [], total: 0, page: 1, limit: 20 });
         });
     });
 
@@ -165,6 +191,25 @@ describe('School.manager', () => {
             mockMongomodels.school.findById.mockResolvedValue(mockSchool);
 
             const result = await school.getSchool({ __token: superadminToken, __role: 'superadmin', schoolId: 'sid1' });
+
+            expect(result).toEqual({ school: mockSchool });
+        });
+
+        it('should return 403 if school admin requests a school they do not own', async () => {
+            const schoolAdminToken = { userId: 'uid2', role: 'schoolAdmin', school: 'sid2' };
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: null });
+
+            const result = await school.getSchool({ __token: schoolAdminToken, __role: 'schoolAdmin', schoolId: 'sid1' });
+
+            expect(result).toEqual({ error: 'forbidden', code: 403 });
+        });
+
+        it('should return school if school admin requests their own school', async () => {
+            const schoolAdminToken = { userId: 'uid2', role: 'schoolAdmin', school: 'sid1' };
+            const mockSchool = { _id: 'sid1', name: 'Greenwood High', deletedAt: null };
+            mockMongomodels.school.findById.mockResolvedValue(mockSchool);
+
+            const result = await school.getSchool({ __token: schoolAdminToken, __role: 'schoolAdmin', schoolId: 'sid1' });
 
             expect(result).toEqual({ school: mockSchool });
         });
@@ -220,6 +265,27 @@ describe('School.manager', () => {
             mockMongomodels.school.findByIdAndUpdate.mockResolvedValue(updated);
 
             const result = await school.updateSchool(payload);
+
+            expect(result).toEqual({ school: updated });
+        });
+
+        it('should return 403 if school admin tries to update a school they do not own', async () => {
+            const schoolAdminToken = { userId: 'uid2', role: 'schoolAdmin', school: 'sid2' };
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: null });
+
+            const result = await school.updateSchool({ ...payload, __token: schoolAdminToken, __role: 'schoolAdmin' });
+
+            expect(result).toEqual({ error: 'forbidden', code: 403 });
+            expect(mockMongomodels.school.findByIdAndUpdate).not.toHaveBeenCalled();
+        });
+
+        it('should allow school admin to update their own school', async () => {
+            const schoolAdminToken = { userId: 'uid2', role: 'schoolAdmin', school: 'sid1' };
+            const updated = { _id: 'sid1', name: payload.name };
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: null });
+            mockMongomodels.school.findByIdAndUpdate.mockResolvedValue(updated);
+
+            const result = await school.updateSchool({ ...payload, __token: schoolAdminToken, __role: 'schoolAdmin' });
 
             expect(result).toEqual({ school: updated });
         });

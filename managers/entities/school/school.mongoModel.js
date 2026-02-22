@@ -9,6 +9,7 @@ const schoolSchema = new mongoose.Schema({
     email:       { type: String },
     maxCapacity: { type: Number, default: 0 }, // 0 = unlimited
     createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: USER, required: true },
+    deletedAt:   { type: Date, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model(SCHOOL, schoolSchema);

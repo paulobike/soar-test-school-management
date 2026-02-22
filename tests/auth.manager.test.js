@@ -94,7 +94,7 @@ describe('Auth.manager', () => {
         });
 
         it('should call createShortToken with correct args on valid credentials', async () => {
-            const mockUser = { _id: 'uid1', email: credentials.email, password: 'hashed', role: 'schoolAdmin' };
+            const mockUser = { _id: 'uid1', email: credentials.email, password: 'hashed', role: 'schoolAdmin', school: 'sid1' };
             mockMongomodels.user.findOne.mockResolvedValue(mockUser);
             bcrypt.compare.mockResolvedValue(true);
             mockTokenManager.createLongToken.mockResolvedValue({ token: 'long_tok' });
@@ -105,6 +105,7 @@ describe('Auth.manager', () => {
             expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({
                 userId: mockUser._id,
                 role:   mockUser.role,
+                school: mockUser.school,
             });
         });
 
@@ -184,11 +185,11 @@ describe('Auth.manager', () => {
         it('should return a new shortToken on valid long token', async () => {
             mockTokenManager.validateLongToken.mockResolvedValue({ userId: 'uid1' });
             mockTokenManager.createShortToken.mockResolvedValue({ token: 'new_short_tok' });
-            mockMongomodels.user.findById.mockResolvedValue({ _id: 'uid1', role: 'superadmin' })
+            mockMongomodels.user.findById.mockResolvedValue({ _id: 'uid1', role: 'superadmin', school: 'sid1' });
 
             const result = await auth.refreshShortToken({ longToken: 'valid_long_token' });
 
-            expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({ userId: 'uid1', role: 'superadmin' });
+            expect(mockTokenManager.createShortToken).toHaveBeenCalledWith({ userId: 'uid1', role: 'superadmin', school: 'sid1' });
             expect(result).toEqual({ shortToken: 'new_short_tok' });
         });
     });

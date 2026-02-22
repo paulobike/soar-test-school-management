@@ -135,4 +135,19 @@ module.exports = {
         path: 'maxCapacity',
         type: 'number',
     },
+    name: {
+        path: 'name',
+        type: 'string',
+        length: { min: 3, max: 100 },
+    },
+    code: {
+        path: 'code',
+        type: 'string',
+        length: { min: 2, max: 10 },
+    },
+    schoolId: {
+        path:  'schoolId',
+        type:  'string',
+        regex: /^[a-f\d]{24}$/i,
+    },
 }

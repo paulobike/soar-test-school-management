@@ -6,6 +6,13 @@ const AUTH_MIDDLEWARES = {
     '__token':      'bearerAuth',
 };
 
+const QUERY_PARAM_MIDDLEWARES = {
+    '__pagination': [
+        { name: 'page',  schema: { type: 'integer', default: 1,  minimum: 1 } },
+        { name: 'limit', schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 } },
+    ],
+};
+
 module.exports = class DocsManager {
 
     constructor({ config, managers, responses }) {
@@ -138,6 +145,35 @@ module.exports = class DocsManager {
         }, []);
     }
 
+    _buildQueryParams(moduleName, fnName, schemas, mwStack) {
+        const params = [];
+
+        // middleware-contributed params (e.g. __pagination)
+        (mwStack || []).forEach(mw => {
+            const mwParams = QUERY_PARAM_MIDDLEWARES[mw];
+            if (mwParams) {
+                mwParams.forEach(p => params.push({ in: 'query', name: p.name, schema: p.schema }));
+            }
+        });
+
+        // schema-defined params
+        const moduleSchema = schemas[moduleName];
+        if (moduleSchema && moduleSchema[fnName]) {
+            moduleSchema[fnName].forEach(field => {
+                const modelDef  = schemaModels[field.model];
+                const fieldName = (modelDef && modelDef.path) ? modelDef.path : field.model;
+                params.push({
+                    in:       'query',
+                    name:     fieldName,
+                    required: field.required || false,
+                    schema:   this._modelToProperty(modelDef),
+                });
+            });
+        }
+
+        return params;
+    }
+
     _generate() {
         const { methodMatrix, mwsStack } = this.userApi;
         const schemas = this._loadSchemas();
@@ -146,11 +182,14 @@ module.exports = class DocsManager {
         Object.keys(methodMatrix).forEach(moduleName => {
             Object.keys(methodMatrix[moduleName]).forEach(httpMethod => {
                 methodMatrix[moduleName][httpMethod].forEach(fnName => {
-                    const pathKey  = `/api/${moduleName}/${fnName}`;
-                    const stackKey = `${moduleName}.${fnName}`;
-                    const security = this._getSecurityReqs(mwsStack[stackKey]);
+                    const pathKey    = `/api/${moduleName}/${fnName}`;
+                    const stackKey   = `${moduleName}.${fnName}`;
+                    const security   = this._getSecurityReqs(mwsStack[stackKey]);
                     const requestBody = httpMethod !== 'get'
                         ? this._buildRequestBody(moduleName, fnName, schemas)
+                        : undefined;
+                    const parameters = httpMethod === 'get'
+                        ? this._buildQueryParams(moduleName, fnName, schemas, mwsStack[stackKey])
                         : undefined;
 
                     if (!paths[pathKey]) paths[pathKey] = {};
@@ -160,6 +199,7 @@ module.exports = class DocsManager {
                         summary: fnName,
                         ...(security.length ? { security }    : {}),
                         ...(requestBody     ? { requestBody } : {}),
+                        ...(parameters && parameters.length ? { parameters } : {}),
                         responses: {
                             '200': {
                                 description: 'Success',

@@ -79,14 +79,15 @@ describe('Token.manager', () => {
             expect(first.token).not.toBe(second.token);
         });
 
-        it('should return a JWT containing userId and role', async () => {
+        it('should return a JWT containing userId, role, and school', async () => {
             const jwt = require('jsonwebtoken');
 
-            const result  = await tokenManager.createShortToken({ userId: 'uid1', role: 'superadmin' });
+            const result  = await tokenManager.createShortToken({ userId: 'uid1', role: 'schoolAdmin', school: 'sid1' });
             const decoded = jwt.verify(result.token, 'test_short_secret');
 
             expect(decoded.userId).toBe('uid1');
-            expect(decoded.role).toBe('superadmin');
+            expect(decoded.role).toBe('schoolAdmin');
+            expect(decoded.school).toBe('sid1');
         });
     });
 

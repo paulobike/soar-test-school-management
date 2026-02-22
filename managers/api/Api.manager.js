@@ -114,7 +114,9 @@ module.exports = class ApiHandler {
         Object.keys(model).forEach(key => {
             if (data[key] === undefined) return;
             const fieldDef = model[key];
-            if (fieldDef.model || fieldDef.type) {
+            if (fieldDef.type === 'array' && fieldDef.items && Array.isArray(data[key])) {
+                filtered[key] = data[key].map(item => this._filterResponse(item, fieldDef.items));
+            } else if (fieldDef.model || fieldDef.type) {
                 filtered[key] = data[key];
             } else {
                 filtered[key] = this._filterResponse(data[key], fieldDef);

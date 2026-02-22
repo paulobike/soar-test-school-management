@@ -24,9 +24,9 @@ module.exports = class TokenManager {
         return { token: doc.token };
     }
 
-    async createShortToken({ userId, role }) {
+    async createShortToken({ userId, role, school }) {
         const token = jwt.sign(
-            { userId, jti: crypto.randomBytes(8).toString('hex'), role },
+            { userId, role, school, jti: crypto.randomBytes(8).toString('hex') },
             this.config.dotEnv.SHORT_TOKEN_SECRET,
             { expiresIn: this.shortTokenExpiresIn }
         );
