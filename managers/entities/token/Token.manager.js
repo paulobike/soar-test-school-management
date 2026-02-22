@@ -24,9 +24,9 @@ module.exports = class TokenManager {
         return { token: doc.token };
     }
 
-    async createShortToken({ userId }) {
+    async createShortToken({ userId, role }) {
         const token = jwt.sign(
-            { userId, jti: crypto.randomBytes(8).toString('hex') },
+            { userId, jti: crypto.randomBytes(8).toString('hex'), role },
             this.config.dotEnv.SHORT_TOKEN_SECRET,
             { expiresIn: this.shortTokenExpiresIn }
         );
@@ -40,6 +40,10 @@ module.exports = class TokenManager {
         doc.status = TOKEN_STATUSES.REVOKED;
         await doc.save();
         return { success: true };
+    }
+
+    verifyShortToken({ token }) {
+        return jwt.verify(token, this.config.dotEnv.SHORT_TOKEN_SECRET);
     }
 
     async validateLongToken({ token }) {

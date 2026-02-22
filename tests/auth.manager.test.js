@@ -250,7 +250,7 @@ describe('Auth.manager', () => {
         it('should return error if user not found', async () => {
             mockUserManager.getUser.mockResolvedValue({ error: 'user_not_found' });
 
-            const result = await auth.me({ userId: 'uid1' });
+            const result = await auth.me({ __token: { userId: 'uid1' } });
 
             expect(result).toEqual({ error: 'user_not_found' });
         });
@@ -259,15 +259,15 @@ describe('Auth.manager', () => {
             const mockUser = { _id: 'uid1', email: 'admin@school.com', role: 'schoolAdmin' };
             mockUserManager.getUser.mockResolvedValue({ user: mockUser });
 
-            const result = await auth.me({ userId: 'uid1' });
+            const result = await auth.me({ __token: { userId: 'uid1' } });
 
             expect(result).toEqual({ user: mockUser });
         });
 
-        it('should call getUser with the correct userId', async () => {
+        it('should call getUser with the correct userId from token', async () => {
             mockUserManager.getUser.mockResolvedValue({ user: {} });
 
-            await auth.me({ userId: 'uid1' });
+            await auth.me({ __token: { userId: 'uid1' } });
 
             expect(mockUserManager.getUser).toHaveBeenCalledWith({ userId: 'uid1' });
         });

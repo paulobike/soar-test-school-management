@@ -2,8 +2,8 @@ const loader       = require('../../loaders/_common/fileLoader');
 const schemaModels = require('../_common/schema.models');
 
 const AUTH_MIDDLEWARES = {
-    '__shortToken': 'shortToken',
-    '__token':      'shortToken',
+    '__shortToken': 'bearerAuth',
+    '__token':      'bearerAuth',
 };
 
 module.exports = class DocsManager {
@@ -201,7 +201,7 @@ module.exports = class DocsManager {
                         type:         'http',
                         scheme:       'bearer',
                         bearerFormat: 'JWT',
-                        description:  'Short-lived JWT — obtain via POST /api/token/v1_createShortToken',
+                        description:  'Short-lived JWT — obtain via POST /api/auth/login',
                     },
                 }
             },

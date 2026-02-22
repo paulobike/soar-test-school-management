@@ -36,7 +36,7 @@ module.exports = class Auth {
         const longTokenResult = await this.tokenManager.createLongToken({ userId: user._id, device, ip });
         if (longTokenResult.error) return longTokenResult;
 
-        const shortTokenResult = await this.tokenManager.createShortToken({ userId: user._id });
+        const shortTokenResult = await this.tokenManager.createShortToken({ userId: user._id, role: user.role });
 
         const { password: _, ...sanitizedUser } = user.toObject ? user.toObject() : user;
         return { longToken: longTokenResult.token, shortToken: shortTokenResult.token, user: sanitizedUser };
@@ -49,8 +49,8 @@ module.exports = class Auth {
         return this.tokenManager.revokeLongToken({ token: longToken });
     }
 
-    async me({ userId }) {
-        return this.userManager.getUser({ userId });
+    async me({ __token }) {
+        return this.userManager.getUser({ userId: __token.userId });
     }
 
     async refreshShortToken({ longToken }) {
@@ -60,7 +60,10 @@ module.exports = class Auth {
         const result = await this.tokenManager.validateLongToken({ token: longToken });
         if (result.error) return result;
 
-        const { token: shortToken } = await this.tokenManager.createShortToken({ userId: result.userId });
+        const user = await this.mongomodels.user.findById(result.userId);
+        if (!user) return { error: 'invalid_user' }
+
+        const { token: shortToken } = await this.tokenManager.createShortToken({ userId: user._id, role: user.role });
         return { shortToken };
     }
 

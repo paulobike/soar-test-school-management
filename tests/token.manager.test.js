@@ -66,26 +66,27 @@ describe('Token.manager', () => {
 
     describe('createShortToken', () => {
         it('should return a non-empty token string', async () => {
-            const result = await tokenManager.createShortToken({ userId: 'uid1' });
+            const result = await tokenManager.createShortToken({ userId: 'uid1', role: 'schoolAdmin' });
 
             expect(typeof result.token).toBe('string');
             expect(result.token.length).toBeGreaterThan(0);
         });
 
         it('should return different tokens on successive calls', async () => {
-            const first  = await tokenManager.createShortToken({ userId: 'uid1' });
-            const second = await tokenManager.createShortToken({ userId: 'uid1' });
+            const first  = await tokenManager.createShortToken({ userId: 'uid1', role: 'schoolAdmin' });
+            const second = await tokenManager.createShortToken({ userId: 'uid1', role: 'schoolAdmin' });
 
             expect(first.token).not.toBe(second.token);
         });
 
-        it('should return a JWT verifiable with the short token secret', async () => {
+        it('should return a JWT containing userId and role', async () => {
             const jwt = require('jsonwebtoken');
 
-            const result  = await tokenManager.createShortToken({ userId: 'uid1' });
+            const result  = await tokenManager.createShortToken({ userId: 'uid1', role: 'superadmin' });
             const decoded = jwt.verify(result.token, 'test_short_secret');
 
             expect(decoded.userId).toBe('uid1');
+            expect(decoded.role).toBe('superadmin');
         });
     });
 
@@ -129,6 +130,29 @@ describe('Token.manager', () => {
 
             expect(mockSave).not.toHaveBeenCalled();
             expect(result).toEqual({ success: true });
+        });
+    });
+
+    // Verify Short Token
+
+    describe('verifyShortToken', () => {
+        it('should return the decoded payload for a valid token', async () => {
+            const { token } = await tokenManager.createShortToken({ userId: 'uid1' });
+
+            const decoded = tokenManager.verifyShortToken({ token });
+
+            expect(decoded.userId).toBe('uid1');
+        });
+
+        it('should throw for an invalid token', () => {
+            expect(() => tokenManager.verifyShortToken({ token: 'invalid.token.here' })).toThrow();
+        });
+
+        it('should throw for a token signed with a different secret', async () => {
+            const jwt   = require('jsonwebtoken');
+            const token = jwt.sign({ userId: 'uid1' }, 'wrong_secret');
+
+            expect(() => tokenManager.verifyShortToken({ token })).toThrow();
         });
     });
 
