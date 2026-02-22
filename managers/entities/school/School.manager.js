@@ -25,7 +25,7 @@ module.exports = class School {
 
     async _getSchool({ schoolId }) {
         const school = await this.mongomodels.school.findById(schoolId);
-        if (!school) return { error: 'school_not_found', code: 404 };
+        if (!school || school.deletedAt) return { error: 'school_not_found', code: 404 };
         return { school };
     }
 
@@ -66,7 +66,12 @@ module.exports = class School {
         const lookup = await this._getSchool({ schoolId });
         if (lookup.error) return { error: lookup.error, code: lookup.code };
 
-        await this.mongomodels.school.findByIdAndDelete(schoolId);
+        const hasStudents = await this.mongomodels.student.exists({ school: schoolId, deletedAt: null });
+        if (hasStudents) return { error: 'school_has_students', code: 409 };
+
+        const now = new Date();
+        await this.mongomodels.classroom.updateMany({ school: schoolId, deletedAt: null }, { deletedAt: now });
+        await this.mongomodels.school.findByIdAndUpdate(schoolId, { deletedAt: now });
         return { success: true };
     }
 

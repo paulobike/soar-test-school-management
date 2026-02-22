@@ -14,8 +14,13 @@ describe('School.manager', () => {
             school: {
                 findById:          jest.fn(),
                 create:            jest.fn(),
-                findByIdAndUpdate: jest.fn(),
-                findByIdAndDelete: jest.fn(),
+                findByIdAndUpdate: jest.fn().mockResolvedValue({}),
+            },
+            classroom: {
+                updateMany: jest.fn().mockResolvedValue({}),
+            },
+            student: {
+                exists: jest.fn().mockResolvedValue(null),
             },
             user: {
                 findOne: jest.fn(),
@@ -48,8 +53,16 @@ describe('School.manager', () => {
             expect(result).toEqual({ error: 'school_not_found', code: 404 });
         });
 
+        it('should return 404 error if school is soft deleted', async () => {
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: new Date() });
+
+            const result = await school._getSchool({ schoolId: 'sid1' });
+
+            expect(result).toEqual({ error: 'school_not_found', code: 404 });
+        });
+
         it('should return school if found', async () => {
-            const mockSchool = { _id: 'sid1', name: 'Test School' };
+            const mockSchool = { _id: 'sid1', name: 'Test School', deletedAt: null };
             mockMongomodels.school.findById.mockResolvedValue(mockSchool);
 
             const result = await school._getSchool({ schoolId: 'sid1' });
@@ -196,21 +209,44 @@ describe('School.manager', () => {
             const result = await school.deleteSchool({ __token: superadminToken, __role: 'superadmin', schoolId: 'sid1' });
 
             expect(result).toEqual({ error: 'school_not_found', code: 404 });
-            expect(mockMongomodels.school.findByIdAndDelete).not.toHaveBeenCalled();
+            expect(mockMongomodels.student.exists).not.toHaveBeenCalled();
         });
 
-        it('should delete the school by id', async () => {
-            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1' });
-            mockMongomodels.school.findByIdAndDelete.mockResolvedValue({});
+        it('should return 409 error if school has active students, ignoring soft deleted ones', async () => {
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: null });
+            mockMongomodels.student.exists.mockResolvedValue({ _id: 'stud1' });
+
+            const result = await school.deleteSchool({ __token: superadminToken, __role: 'superadmin', schoolId: 'sid1' });
+
+            expect(mockMongomodels.student.exists).toHaveBeenCalledWith({ school: 'sid1', deletedAt: null });
+            expect(result).toEqual({ error: 'school_has_students', code: 409 });
+            expect(mockMongomodels.classroom.updateMany).not.toHaveBeenCalled();
+        });
+
+        it('should soft delete all classrooms in the school', async () => {
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: null });
 
             await school.deleteSchool({ __token: superadminToken, __role: 'superadmin', schoolId: 'sid1' });
 
-            expect(mockMongomodels.school.findByIdAndDelete).toHaveBeenCalledWith('sid1');
+            expect(mockMongomodels.classroom.updateMany).toHaveBeenCalledWith(
+                { school: 'sid1', deletedAt: null },
+                expect.objectContaining({ deletedAt: expect.any(Date) }),
+            );
+        });
+
+        it('should soft delete the school', async () => {
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: null });
+
+            await school.deleteSchool({ __token: superadminToken, __role: 'superadmin', schoolId: 'sid1' });
+
+            expect(mockMongomodels.school.findByIdAndUpdate).toHaveBeenCalledWith(
+                'sid1',
+                expect.objectContaining({ deletedAt: expect.any(Date) }),
+            );
         });
 
         it('should return success on deletion', async () => {
-            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1' });
-            mockMongomodels.school.findByIdAndDelete.mockResolvedValue({});
+            mockMongomodels.school.findById.mockResolvedValue({ _id: 'sid1', deletedAt: null });
 
             const result = await school.deleteSchool({ __token: superadminToken, __role: 'superadmin', schoolId: 'sid1' });
 
