@@ -113,6 +113,7 @@ module.exports = class DocsManager {
         const required   = [];
 
         moduleSchema[fnName].forEach(field => {
+            if (field.in === 'path') return;
             const modelDef  = schemaModels[field.model];
             const fieldName = (modelDef && modelDef.path) ? modelDef.path : field.model;
             properties[fieldName] = this._modelToProperty(modelDef);
@@ -160,6 +161,7 @@ module.exports = class DocsManager {
         const moduleSchema = schemas[moduleName];
         if (moduleSchema && moduleSchema[fnName]) {
             moduleSchema[fnName].forEach(field => {
+                if (field.in === 'path') return;
                 const modelDef  = schemaModels[field.model];
                 const fieldName = (modelDef && modelDef.path) ? modelDef.path : field.model;
                 params.push({
@@ -179,18 +181,38 @@ module.exports = class DocsManager {
         const schemas = this._loadSchemas();
         const paths   = {};
 
+        const { pathParams } = this.userApi;
+
         Object.keys(methodMatrix).forEach(moduleName => {
             Object.keys(methodMatrix[moduleName]).forEach(httpMethod => {
                 methodMatrix[moduleName][httpMethod].forEach(fnName => {
-                    const pathKey    = `/api/${moduleName}/${fnName}`;
                     const stackKey   = `${moduleName}.${fnName}`;
+                    const pathParam  = pathParams[stackKey];
+                    const pathKey    = pathParam
+                        ? `/api/${moduleName}/${fnName}/{${pathParam}}`
+                        : `/api/${moduleName}/${fnName}`;
                     const security   = this._getSecurityReqs(mwsStack[stackKey]);
                     const requestBody = httpMethod !== 'get'
                         ? this._buildRequestBody(moduleName, fnName, schemas)
                         : undefined;
-                    const parameters = httpMethod === 'get'
-                        ? this._buildQueryParams(moduleName, fnName, schemas, mwsStack[stackKey])
-                        : undefined;
+
+                    const parameters = [];
+                    if (pathParam) {
+                        const moduleSchema  = schemas[moduleName];
+                        const pathParamField = moduleSchema && moduleSchema[fnName]
+                            ? moduleSchema[fnName].find(f => f.in === 'path')
+                            : null;
+                        const modelDef = pathParamField ? schemaModels[pathParamField.model] : null;
+                        parameters.push({
+                            in:       'path',
+                            name:     pathParam,
+                            required: true,
+                            schema:   modelDef ? this._modelToProperty(modelDef) : { type: 'string' },
+                        });
+                    }
+                    if (httpMethod === 'get') {
+                        parameters.push(...this._buildQueryParams(moduleName, fnName, schemas, mwsStack[stackKey]));
+                    }
 
                     if (!paths[pathKey]) paths[pathKey] = {};
 
@@ -199,7 +221,7 @@ module.exports = class DocsManager {
                         summary: fnName,
                         ...(security.length ? { security }    : {}),
                         ...(requestBody     ? { requestBody } : {}),
-                        ...(parameters && parameters.length ? { parameters } : {}),
+                        ...(parameters.length ? { parameters } : {}),
                         responses: {
                             '200': {
                                 description: 'Success',

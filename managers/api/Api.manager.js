@@ -22,6 +22,7 @@ module.exports = class ApiHandler {
         this.prop          = prop
         this.exposed       = {};
         this.methodMatrix  = {};
+        this.pathParams    = {};
         this.auth          = {};
         this.fileUpload    = {};
         this.mwsStack        = {};
@@ -42,6 +43,12 @@ module.exports = class ApiHandler {
                         let frags = i.split('=');
                         method=frags[0];
                         fnName=frags[1];
+                    }
+                    /** parse optional path param: 'get=getSchool:schoolId' */
+                    if(fnName.includes(':')){
+                        let parts = fnName.split(':');
+                        fnName    = parts[0];
+                        this.pathParams[`${mk}.${fnName}`] = parts[1];
                     }
                     if(!this.methodMatrix[mk][method]){
                         this.methodMatrix[mk][method]=[];
@@ -168,9 +175,12 @@ module.exports = class ApiHandler {
 
             /** executed after all middleware finished */
 
-            let body = req.body || {};
+            let body      = req.body || {};
+            let pathParam = this.pathParams[`${moduleName}.${fnName}`];
+            let pathArgs  = (pathParam && req.params.id) ? { [pathParam]: req.params.id } : {};
             let result = await this._exec({targetModule: this.managers[moduleName], fnName, data: {
                 ...body,
+                ...pathArgs,
                 ...results,
                 res,
             }});

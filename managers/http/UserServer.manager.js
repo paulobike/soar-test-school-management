@@ -2,6 +2,7 @@ const http              = require('http');
 const express           = require('express');
 const cors              = require('cors');
 const swaggerUi         = require('swagger-ui-express');
+const morgan            = require('morgan');
 const app               = express();
 
 module.exports = class UserServer {
@@ -21,6 +22,7 @@ module.exports = class UserServer {
         app.use(cors({origin: '*'}));
         app.use(express.json());
         app.use(express.urlencoded({ extended: true}));
+        app.use(morgan('dev'));
         app.use('/static', express.static('public'));
 
         /** api docs */
@@ -28,6 +30,7 @@ module.exports = class UserServer {
         app.get('/api-docs.json', (req, res) => res.json(this.docs.spec));
 
         /** a single middleware to handle all */
+        app.all('/api/:moduleName/:fnName/:id', this.userApi.mw);
         app.all('/api/:moduleName/:fnName', this.userApi.mw);
 
         /** 404 — no route matched */

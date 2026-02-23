@@ -12,7 +12,7 @@ module.exports = class TransferRequest {
         this.httpExposed                = [
             'post=createTransferRequest',
             'get=getTransferRequests',
-            'get=getTransferRequest',
+            'get=getTransferRequest:requestId',
             'post=approveTransferRequest',
             'post=rejectTransferRequest',
         ];

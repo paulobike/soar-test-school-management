@@ -9,7 +9,7 @@ module.exports = {
         { model: 'maxCapacity' },
     ],
     getSchool: [
-        { model: 'schoolId', required: true },
+        { model: 'schoolId', required: true, in: 'path' },
     ],
     updateSchool: [
         { model: 'schoolId',    required: true },

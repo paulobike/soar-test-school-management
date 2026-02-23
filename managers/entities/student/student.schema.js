@@ -10,7 +10,7 @@ module.exports = {
         { model: 'classroomId' },
     ],
     getStudent: [
-        { model: 'studentId', required: true },
+        { model: 'studentId', required: true, in: 'path' },
     ],
     updateStudent: [
         { model: 'studentId',   required: true },

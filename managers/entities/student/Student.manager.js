@@ -11,7 +11,7 @@ module.exports = class Student {
         this.httpExposed        = [
             'post=createStudent',
             'get=getStudents',
-            'get=getStudent',
+            'get=getStudent:studentId',
             'put=updateStudent',
             'delete=deleteStudent',
         ];

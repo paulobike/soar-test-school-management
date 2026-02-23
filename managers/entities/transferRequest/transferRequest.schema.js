@@ -6,7 +6,7 @@ module.exports = {
         { model: 'toClassroomId' },
     ],
     getTransferRequest: [
-        { model: 'requestId', required: true },
+        { model: 'requestId', required: true, in: 'path' },
     ],
     approveTransferRequest: [
         { model: 'requestId', required: true },
